@@ -1,11 +1,11 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
-from database import buscar_repuestos, obtener_repuesto, editar_repuesto, editar_repuesto_fotos, esta_registrado
-from keyboards import menu_editar, menu_cantidad, menu_confirmar, botones_volver
+from database import buscar_repuestos, obtener_repuesto, editar_repuesto, editar_repuesto_fotos, esta_registrado, agregar_categoria, obtener_categoria_por_nombre, obtener_categorias
+from keyboards import menu_editar, menu_cantidad, menu_confirmar, botones_volver, menu_categorias
 from handlers.utils import finalizar, edit_mensaje
 
-SEARCH, SELECT_ITEM, SELECT_FIELD, EDIT_VALUE, CONFIRMAR = range(5)
+SEARCH, SELECT_ITEM, SELECT_FIELD, EDIT_VALUE, ADD_CAT_NAME, CONFIRMAR = range(6)
 
 FILTRO_IMAGEN = filters.PHOTO | filters.Document.IMAGE
 
@@ -168,8 +168,6 @@ async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return EDIT_VALUE
 
     if data == "editar_categoria":
-        from keyboards import menu_categorias
-        from database import obtener_categorias
         categorias = obtener_categorias()
         context.user_data["campo"] = "categoria_id"
         await edit_mensaje(
@@ -188,6 +186,14 @@ async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["campo"] = "fotos"
         context.user_data["fotos_nuevas"] = []
         return EDIT_VALUE
+
+    if data == "agregar_categoria":
+        await edit_mensaje(
+            query,
+            "📝 Escribe el nombre de la nueva categoría:",
+            reply_markup=botones_volver(),
+        )
+        return ADD_CAT_NAME
 
     await edit_mensaje(query, "⚠️ Opción no válida.", reply_markup=menu_editar())
     return SELECT_FIELD
@@ -365,6 +371,40 @@ async def cancel_editar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def nueva_categoria_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    from database import es_admin
+    if not es_admin(user_id):
+        categorias = obtener_categorias()
+        await update.message.reply_text(
+            "❌ Solo el administrador puede agregar categorías.",
+            reply_markup=menu_categorias(categorias) if categorias else botones_volver(),
+        )
+        return EDIT_VALUE
+
+    nombre = update.message.text.strip()
+    if not nombre:
+        await update.message.reply_text("⚠️ El nombre no puede estar vacío. Intenta de nuevo:")
+        return ADD_CAT_NAME
+
+    existente = obtener_categoria_por_nombre(nombre)
+    if existente:
+        context.user_data["nuevo_valor"] = existente["id"]
+        await update.message.reply_text(
+            f"✅ Categoría '{nombre}' ya existe.\n\n¿Confirmar cambio?",
+            reply_markup=menu_confirmar(),
+        )
+        return CONFIRMAR
+
+    nueva_cat = agregar_categoria(nombre)
+    context.user_data["nuevo_valor"] = nueva_cat
+    await update.message.reply_text(
+        f"✅ Categoría '{nombre}' creada.\n\n¿Confirmar cambio?",
+        reply_markup=menu_confirmar(),
+    )
+    return CONFIRMAR
+
+
 editar_handler = ConversationHandler(
     entry_points=[
         CommandHandler("editar", start_editar),
@@ -375,10 +415,11 @@ editar_handler = ConversationHandler(
         SELECT_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, select_item)],
         SELECT_FIELD: [CallbackQueryHandler(select_field, pattern="^editar_|cancelar$")],
         EDIT_VALUE: [
-            CallbackQueryHandler(edit_value, pattern="^(cant_|cat_|cancelar)"),
+            CallbackQueryHandler(edit_value, pattern="^(cant_|cat_|agregar_categoria|cancelar)"),
             MessageHandler(FILTRO_IMAGEN, edit_value),
             MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value),
         ],
+        ADD_CAT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, nueva_categoria_nombre)],
         CONFIRMAR: [CallbackQueryHandler(confirmar, pattern="^(confirmar|cancelar)$")],
     },
     fallbacks=[
