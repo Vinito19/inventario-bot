@@ -18,6 +18,9 @@ async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    from handlers.agregar import eliminar_fotos
+    await eliminar_fotos(context)
+
     user_id = query.from_user.id
     usuario = obtener_usuario(user_id)
 

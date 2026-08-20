@@ -17,6 +17,15 @@ SELECT_CATEGORY, PHOTO_1, PHOTO_2, PHOTO_3, PHOTO_4, CODIGO, NOMBRE, DESCRIPCION
 FILTRO_IMAGEN = filters.PHOTO | filters.Document.IMAGE
 
 
+async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE):
+    ids = context.user_data.pop("photo_msg_ids", [])
+    for mid in ids:
+        try:
+            await context.bot.delete_message(chat_id=context._chat_id, message_id=mid)
+        except Exception:
+            pass
+
+
 def obtener_file_id(update: Update):
     if update.message.photo:
         return update.message.photo[-1].file_id
@@ -338,15 +347,18 @@ async def ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "¿Confirmar registro?"
     )
 
+    context.user_data["photo_msg_ids"] = []
     for i, file_id in enumerate(ud["file_ids"], 1):
         try:
             if i == 1:
-                await update.message.reply_photo(photo=file_id, caption=resumen, reply_markup=menu_confirmar())
+                msg = await update.message.reply_photo(photo=file_id, caption=resumen, reply_markup=menu_confirmar())
             else:
-                await update.message.reply_photo(photo=file_id)
+                msg = await update.message.reply_photo(photo=file_id)
+            context.user_data["photo_msg_ids"].append(msg.message_id)
         except Exception:
             if i == 1:
-                await update.message.reply_text(resumen, reply_markup=menu_confirmar())
+                msg = await update.message.reply_text(resumen, reply_markup=menu_confirmar())
+                context.user_data["photo_msg_ids"].append(msg.message_id)
 
     return CONFIRMAR
 
@@ -373,13 +385,16 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 categoria_id=ud["categoria_id"],
                 ubicacion=ud["ubicacion"],
             )
-            await edit_mensaje(
-                query,
-                "✅ Repuesto registrado correctamente!\n\n"
-                f"🏷️ Código: {ud['codigo']}\n"
-                f"📝 Nombre: {ud['nombre']}\n"
-                f"📦 Cantidad: {ud['cantidad']}\n"
-                f"💰 Precio: ${ud['precio']:.2f}",
+            await eliminar_fotos(context)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=(
+                    "✅ Repuesto registrado correctamente!\n\n"
+                    f"🏷️ Código: {ud['codigo']}\n"
+                    f"📝 Nombre: {ud['nombre']}\n"
+                    f"📦 Cantidad: {ud['cantidad']}\n"
+                    f"💰 Precio: ${ud['precio']:.2f}"
+                ),
                 reply_markup=botones_volver(),
             )
         except Exception as e:
@@ -401,7 +416,12 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def callback_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await edit_mensaje(query, "❌ Operación cancelada.", reply_markup=botones_volver())
+    await eliminar_fotos(context)
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="❌ Operación cancelada.",
+        reply_markup=botones_volver(),
+    )
     context.user_data.clear()
     return ConversationHandler.END
 

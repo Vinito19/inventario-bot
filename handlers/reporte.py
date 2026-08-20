@@ -20,7 +20,7 @@ async def start_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📊 REPORTE DE INVENTARIO\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📦 Total artículos:    {resumen['total']}\n"
-        f"⚠️ Stock bajo (<5):    {resumen['bajo']}\n"
+        f"🔢 Total unidades:     {resumen['unidades']}\n"
         f"🚫 Stock en cero:      {resumen['cero']}\n"
         f"💰 Valor total:        ${resumen['valor']:,.2f}\n\n"
     )
@@ -28,12 +28,12 @@ async def start_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if resumen["por_categoria"]:
         texto += "📂 Por categoría:\n"
         for cat in resumen["por_categoria"]:
-            texto += f"  • {cat['nombre']}: {cat['total']} artículos\n"
+            texto += f"  • {cat['nombre']}: {cat['total']} artículos · {cat['unidades']} unidades\n"
 
     if resumen["sin_categoria"]:
         texto += "\n📌 Sin categoría:\n"
         for s in resumen["sin_categoria"]:
-            texto += f"  • {s['total']} artículos\n"
+            texto += f"  • {s['total']} artículos · {s['unidades']} unidades\n"
 
     texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -68,7 +68,7 @@ async def callback_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📊 REPORTE DE INVENTARIO\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📦 Total artículos:    {resumen['total']}\n"
-        f"⚠️ Stock bajo (<5):    {resumen['bajo']}\n"
+        f"🔢 Total unidades:     {resumen['unidades']}\n"
         f"🚫 Stock en cero:      {resumen['cero']}\n"
         f"💰 Valor total:        ${resumen['valor']:,.2f}\n\n"
     )
@@ -76,12 +76,12 @@ async def callback_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if resumen["por_categoria"]:
         texto += "📂 Por categoría:\n"
         for cat in resumen["por_categoria"]:
-            texto += f"  • {cat['nombre']}: {cat['total']} artículos\n"
+            texto += f"  • {cat['nombre']}: {cat['total']} artículos · {cat['unidades']} unidades\n"
 
     if resumen["sin_categoria"]:
         texto += "\n📌 Sin categoría:\n"
         for s in resumen["sin_categoria"]:
-            texto += f"  • {s['total']} artículos\n"
+            texto += f"  • {s['total']} artículos · {s['unidades']} unidades\n"
 
     texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

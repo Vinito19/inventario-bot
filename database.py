@@ -329,8 +329,8 @@ def obtener_resumen():
         cursor.execute("SELECT COUNT(*) as total FROM repuestos")
         total = cursor.fetchone()["total"]
 
-        cursor.execute("SELECT COUNT(*) as bajo FROM repuestos WHERE cantidad > 0 AND cantidad < 5")
-        bajo = cursor.fetchone()["bajo"]
+        cursor.execute("SELECT COALESCE(SUM(cantidad), 0) as unidades FROM repuestos")
+        unidades = cursor.fetchone()["unidades"]
 
         cursor.execute("SELECT COUNT(*) as cero FROM repuestos WHERE cantidad = 0")
         cero = cursor.fetchone()["cero"]
@@ -339,7 +339,7 @@ def obtener_resumen():
         valor = cursor.fetchone()["valor"]
 
         cursor.execute("""
-            SELECT c.nombre, COUNT(r.id) as total
+            SELECT c.nombre, COUNT(r.id) as total, COALESCE(SUM(r.cantidad), 0) as unidades
             FROM categorias c
             LEFT JOIN repuestos r ON r.categoria_id = c.id
             GROUP BY c.id
@@ -347,13 +347,13 @@ def obtener_resumen():
         """)
         por_categoria = cursor.fetchall()
 
-        cursor.execute("SELECT COUNT(*) as total FROM repuestos WHERE categoria_id IS NULL")
+        cursor.execute("SELECT COUNT(*) as total, COALESCE(SUM(cantidad), 0) as unidades FROM repuestos WHERE categoria_id IS NULL")
         sc = cursor.fetchone()
-        sin_categoria = [{"nombre": "Sin categoría", "total": sc["total"]}] if sc["total"] > 0 else []
+        sin_categoria = [{"nombre": "Sin categoría", "total": sc["total"], "unidades": sc["unidades"]}] if sc["total"] > 0 else []
 
         return {
             "total": total,
-            "bajo": bajo,
+            "unidades": unidades,
             "cero": cero,
             "valor": valor,
             "por_categoria": por_categoria,
