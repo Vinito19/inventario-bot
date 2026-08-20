@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
 
 import config
 from database import init_db, registrar_admins
@@ -6,6 +8,7 @@ from database import init_db, registrar_admins
 from telegram.ext import Application, CallbackQueryHandler
 from telegram.error import NetworkError
 
+from backup import enviar_backup
 from handlers.start import start_handler, inicio_callback_handler, aprobar_callback_handler, rechazar_callback_handler
 from handlers.agregar import agregar_handler
 from handlers.buscar import buscar_handler
@@ -45,6 +48,7 @@ def main():
         .read_timeout(60)
         .write_timeout(60)
         .connect_timeout(15)
+        .timezone(ZoneInfo(config.TIMEZONE))
         .build()
     )
 
@@ -69,6 +73,10 @@ def main():
     app.add_handler(usuarios_handler)
 
     app.add_handler(inicio_callback_handler)
+
+    hora_backup = time(config.BACKUP_HORA, config.BACKUP_MINUTO)
+    app.job_queue.run_daily(enviar_backup, time=hora_backup, days=tuple(range(7)))
+    print(f"[OK] Backup diario programado a las {config.HORA_BACKUP}")
 
     print("[OK] Bot iniciado correctamente")
     app.run_polling()
