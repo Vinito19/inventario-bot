@@ -81,12 +81,13 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
 
     data = query.data
 
     if data == "inicio":
         return await finalizar(update, context)
+
+    await query.answer()
 
     if data == "buscar":
         await edit_mensaje(

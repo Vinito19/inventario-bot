@@ -154,7 +154,6 @@ async def add_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def confirmar_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
 
     data = query.data
 
@@ -163,6 +162,8 @@ async def confirmar_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "categorias":
         return await callback_categorias(update, context)
+
+    await query.answer()
 
     if data == "nueva_categoria":
         user_id = query.from_user.id
