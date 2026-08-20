@@ -157,6 +157,16 @@ async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return EDIT_VALUE
 
+    if data == "editar_descripcion":
+        context.user_data["campo"] = "descripcion"
+        await edit_mensaje(
+            query,
+            f"📝 Descripción actual: {repuesto['descripcion']}\n\n"
+            f"📝 Escribe la nueva descripción:",
+            reply_markup=botones_volver(),
+        )
+        return EDIT_VALUE
+
     if data == "editar_categoria":
         from keyboards import menu_categorias
         from database import obtener_categorias
