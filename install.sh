@@ -24,12 +24,13 @@ else
     cd "$APP_DIR"
     sudo git pull
 fi
+sudo chown -R ubuntu:ubuntu "$APP_DIR"
 cd "$APP_DIR"
 
 echo "=== [3/6] Creando entorno virtual ==="
-sudo python3 -m venv venv
-sudo ./venv/bin/pip install --upgrade pip
-sudo ./venv/bin/pip install -r requirements.txt
+python3 -m venv venv
+./venv/bin/pip install --upgrade pip
+./venv/bin/pip install -r requirements.txt
 
 echo "=== [4/6] Configurando variables de entorno ==="
 if [ ! -f "$APP_DIR/.env" ]; then
@@ -38,13 +39,13 @@ if [ ! -f "$APP_DIR/.env" ]; then
     read -rp "Hora del backup diario (HH:MM, default 00:00): " HORA
     HORA=${HORA:-00:00}
 
-    sudo tee "$APP_DIR/.env" > /dev/null <<EOF
+    tee "$APP_DIR/.env" > /dev/null <<EOF
 BOT_TOKEN=$BOT_TOKEN
 ADMIN_IDS=$ADMIN_IDS
 HORA_BACKUP=$HORA
 TIMEZONE=America/Guayaquil
 EOF
-    sudo chmod 600 "$APP_DIR/.env"
+    chmod 600 "$APP_DIR/.env"
     echo ".env creado correctamente"
 else
     echo ".env ya existe, no se sobrescribe"
