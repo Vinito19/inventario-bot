@@ -365,7 +365,7 @@ editar_handler = ConversationHandler(
         SELECT_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, select_item)],
         SELECT_FIELD: [CallbackQueryHandler(select_field, pattern="^editar_|cancelar$")],
         EDIT_VALUE: [
-            CallbackQueryHandler(edit_value, pattern="^(cant_|cat_|cancelar)$"),
+            CallbackQueryHandler(edit_value, pattern="^(cant_|cat_|cancelar)"),
             MessageHandler(FILTRO_IMAGEN, edit_value),
             MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value),
         ],

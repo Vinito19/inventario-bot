@@ -158,5 +158,5 @@ async def callback_rechazar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 start_handler = CommandHandler("start", start)
 inicio_callback_handler = CallbackQueryHandler(callback_inicio, pattern="^inicio$")
-aprobar_callback_handler = CallbackQueryHandler(callback_aprobar, pattern="^aprobar_$")
-rechazar_callback_handler = CallbackQueryHandler(callback_rechazar, pattern="^rechazar_$")
+aprobar_callback_handler = CallbackQueryHandler(callback_aprobar, pattern="^aprobar_")
+rechazar_callback_handler = CallbackQueryHandler(callback_rechazar, pattern="^rechazar_")

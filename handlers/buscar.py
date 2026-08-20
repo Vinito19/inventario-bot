@@ -152,7 +152,7 @@ buscar_handler = ConversationHandler(
     ],
     states={
         SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, search)],
-        VIEW_ITEM: [CallbackQueryHandler(view_item, pattern="^(inicio|buscar|ver_)")],
+        VIEW_ITEM: [CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+)$")],
     },
     fallbacks=[
         CommandHandler("cancel", cancel_buscar),

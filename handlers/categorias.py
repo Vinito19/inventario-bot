@@ -243,7 +243,7 @@ categorias_handler = ConversationHandler(
         CONFIRMAR_DELETE: [
             CallbackQueryHandler(
                 confirmar_delete,
-                pattern="^(inicio|nueva_categoria|eliminar_cat_|confirmar_eliminar_cat_|categorias)$",
+                pattern="^(inicio|nueva_categoria|eliminar_cat_|confirmar_eliminar_cat_|categorias)",
             )
         ],
     },

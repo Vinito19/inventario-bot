@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 import config
 from database import init_db, registrar_admins
 
-from telegram.ext import Application, CallbackQueryHandler
+from telegram.ext import Application, CallbackQueryHandler, Defaults
 from telegram.error import NetworkError
 
 from backup import enviar_backup
@@ -48,7 +48,7 @@ def main():
         .read_timeout(60)
         .write_timeout(60)
         .connect_timeout(15)
-        .timezone(ZoneInfo(config.TIMEZONE))
+        .defaults(Defaults(tzinfo=ZoneInfo(config.TIMEZONE)))
         .build()
     )
 

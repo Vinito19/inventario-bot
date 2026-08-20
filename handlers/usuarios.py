@@ -262,11 +262,11 @@ usuarios_handler = ConversationHandler(
             ),
             CallbackQueryHandler(
                 ver_usuario,
-                pattern="^ver_user_$",
+                pattern="^ver_user_",
             ),
             CallbackQueryHandler(
                 eliminar_usuario,
-                pattern="^eliminar_usuario_$",
+                pattern="^eliminar_usuario_",
             ),
             CallbackQueryHandler(callback_usuarios, pattern="^usuarios$"),
         ],

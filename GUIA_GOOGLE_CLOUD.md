@@ -210,6 +210,32 @@ cd inventario-bot && bash install.sh
 
 Tu bot ya está **corriendo 24/7 en la nube**.
 
+**Paso 6 — OPCIONAL: darle memoria extra a tu computadora (solo el primer mes)**
+
+Tu computadora gratis tiene 1 GB de memoria. Para el primer mes (cuando vas a
+agregar muchos repuestos con fotos de golpe), puedes darle **2 GB de memoria de
+respaldo** (esto se llama *swap* y es gratis). **No es obligatorio**: hazlo solo
+si el bot se pone lento o se reinicia a veces.
+
+Copia y pega esto, luego Enter (crea el archivo de memoria extra):
+
+```
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Para comprobar que quedó activado, copia y pega esto, luego Enter:
+
+```
+free -h
+```
+
+Deberías ver una línea **"Swap"** con **"2,0G"** (o algo parecido). Listo.
+Este paso se hace **una sola vez** y no te cuesta nada.
+
 ---
 
 ## PARTE 7 — Verificar que funciona (5 minutos)
