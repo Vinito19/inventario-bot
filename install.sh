@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================
-# Instalacion automatica del bot de inventario en Oracle Cloud
+# Instalacion automatica del bot de inventario en la nube
 # Sistema: Ubuntu 22.04+
 # ============================================================
 
