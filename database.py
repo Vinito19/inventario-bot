@@ -228,7 +228,7 @@ def obtener_repuesto(codigo):
 
 
 def agregar_repuesto(codigo, nombre, descripcion, cantidad, precio, file_ids, categoria_id, ubicacion):
-    if not file_ids or len(file_ids) < 4:
+    if not file_ids or len(file_ids) != 4:
         raise ValueError("Se requieren exactamente 4 fotos")
     conn = get_connection()
     try:
