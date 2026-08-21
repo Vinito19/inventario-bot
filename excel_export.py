@@ -84,7 +84,7 @@ def generar_excel():
     ws.auto_filter.ref = ws.dimensions
     ws.freeze_panes = "A2"
 
-    fecha_str = datetime.now().strftime("%Y-%m-%d")
+    fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     archivo = f"inventario_{fecha_str}.xlsx"
     ruta = os.path.join(os.getcwd(), archivo)
     wb.save(ruta)
