@@ -137,8 +137,13 @@ def botones_usuarios(usuarios):
 
 
 def botones_detalle_usuario(usuario):
+    uid = usuario["user_id"]
+    texto_estado = "🟢 Activar" if not usuario["activo"] else "🔴 Desactivar"
+    texto_rol = "⬇️ Quitar admin" if usuario["rol"] == "admin" else "⬆️ Hacer admin"
     keyboard = [
-        [InlineKeyboardButton("🗑️ Eliminar usuario", callback_data=f"eliminar_usuario_{usuario['user_id']}")],
+        [InlineKeyboardButton(texto_estado, callback_data=f"cambiar_estado_{uid}")],
+        [InlineKeyboardButton(texto_rol, callback_data=f"cambiar_rol_{uid}")],
+        [InlineKeyboardButton("🗑️ Eliminar usuario", callback_data=f"eliminar_usuario_{uid}")],
         [InlineKeyboardButton("❌ Volver", callback_data="usuarios")],
     ]
     return InlineKeyboardMarkup(keyboard)

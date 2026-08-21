@@ -247,6 +247,95 @@ async def cancel_usuarios(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def cambiar_estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id_admin = query.from_user.id
+    if not es_admin(user_id_admin):
+        await edit_mensaje(query, "❌ Solo el administrador puede realizar esta acción.")
+        return ConversationHandler.END
+
+    uid = int(query.data.replace("cambiar_estado_", ""))
+
+    if uid == user_id_admin:
+        await edit_mensaje(query, "⚠️ No puedes desactivarte a ti mismo.", reply_markup=botones_volver())
+        return CONFIRMAR_DELETE
+
+    usuario = obtener_usuario(uid)
+    if not usuario:
+        await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
+        return CONFIRMAR_DELETE
+
+    if usuario["rol"] == "admin" and usuario["activo"] == 1 and usuario["activo"] == query.data.split("_")[2]:
+        pass
+
+    nuevo_estado = 0 if usuario["activo"] else 1
+    cambiar_estado_usuario(uid, nuevo_estado)
+
+    texto_estado = "activado" if nuevo_estado else "desactivado"
+    await edit_mensaje(
+        query,
+        f"✅ Usuario {usuario['nombre']} {texto_estado}.",
+        reply_markup=botones_volver(),
+    )
+
+    try:
+        await context.bot.send_message(
+            chat_id=uid,
+            text=f"{'✅ Tu acceso ha sido restaurado.' if nuevo_estado else '❌ Tu acceso ha sido desactivado por el administrador.'}",
+        )
+    except Exception:
+        pass
+
+    return ConversationHandler.END
+
+
+async def cambiar_rol(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id_admin = query.from_user.id
+    if not es_admin(user_id_admin):
+        await edit_mensaje(query, "❌ Solo el administrador puede realizar esta acción.")
+        return ConversationHandler.END
+
+    uid = int(query.data.replace("cambiar_rol_", ""))
+
+    if uid == user_id_admin:
+        await edit_mensaje(query, "⚠️ No puedes cambiar tu propio rol.", reply_markup=botones_volver())
+        return CONFIRMAR_DELETE
+
+    usuario = obtener_usuario(uid)
+    if not usuario:
+        await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
+        return CONFIRMAR_DELETE
+
+    if usuario["rol"] == "admin":
+        admin_count = contar_admins_activos()
+        if admin_count <= 1:
+            await edit_mensaje(
+                query,
+                "⚠️ No se puede quitar admin al último administrador.",
+                reply_markup=botones_volver(),
+            )
+            return CONFIRMAR_DELETE
+        nuevo_rol = "usuario"
+    else:
+        nuevo_rol = "admin"
+
+    from database import registrar_usuario
+    registrar_usuario(uid, usuario["nombre"], rol=nuevo_rol, activo=usuario["activo"])
+
+    texto_rol = "administrador" if nuevo_rol == "admin" else "usuario"
+    await edit_mensaje(
+        query,
+        f"✅ {usuario['nombre']} ahora es {texto_rol}.",
+        reply_markup=botones_volver(),
+    )
+    return ConversationHandler.END
+
+
 usuarios_handler = ConversationHandler(
     entry_points=[
         CommandHandler("usuarios", start_usuarios),
@@ -267,6 +356,14 @@ usuarios_handler = ConversationHandler(
             CallbackQueryHandler(
                 eliminar_usuario,
                 pattern="^eliminar_usuario_",
+            ),
+            CallbackQueryHandler(
+                cambiar_estado,
+                pattern="^cambiar_estado_",
+            ),
+            CallbackQueryHandler(
+                cambiar_rol,
+                pattern="^cambiar_rol_",
             ),
             CallbackQueryHandler(callback_usuarios, pattern="^usuarios$"),
         ],
