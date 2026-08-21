@@ -25,11 +25,12 @@ def menu_usuario():
     return InlineKeyboardMarkup(keyboard)
 
 
-def menu_categorias(categorias):
+def menu_categorias(categorias, puede_agregar=True):
     keyboard = []
     for cat in categorias:
         keyboard.append([InlineKeyboardButton(f"📂 {cat['nombre']}", callback_data=f"cat_{cat['id']}")])
-    keyboard.append([InlineKeyboardButton("➕ Agregar categoría", callback_data="agregar_categoria")])
+    if puede_agregar:
+        keyboard.append([InlineKeyboardButton("➕ Agregar categoría", callback_data="agregar_categoria")])
     keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")])
     return InlineKeyboardMarkup(keyboard)
 

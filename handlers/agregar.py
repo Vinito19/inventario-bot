@@ -58,7 +58,7 @@ async def start_agregar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "📦 AGREGAR NUEVO REPUESTO\n\n"
         "Selecciona la categoría del repuesto:",
-        reply_markup=menu_categorias(categorias),
+        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id)),
     )
     return SELECT_CATEGORY
 
@@ -85,7 +85,7 @@ async def callback_agregar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query,
         "📦 AGREGAR NUEVO REPUESTO\n\n"
         "Selecciona la categoría del repuesto:",
-        reply_markup=menu_categorias(categorias),
+        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id)),
     )
     return SELECT_CATEGORY
 
@@ -112,7 +112,8 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cat_id = int(data.replace("cat_", ""))
         except ValueError:
             categorias = obtener_categorias()
-            await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias))
+            admin = es_admin(query.from_user.id)
+            await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin))
             return SELECT_CATEGORY
         context.user_data["categoria_id"] = cat_id
         await edit_mensaje(
@@ -126,7 +127,8 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return PHOTO_1
 
     categorias = obtener_categorias()
-    await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias))
+    admin = es_admin(query.from_user.id)
+    await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin))
     return SELECT_CATEGORY
 
 
