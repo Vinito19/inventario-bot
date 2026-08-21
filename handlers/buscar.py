@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler
 
 from database import buscar_repuestos, obtener_repuesto, esta_registrado
 from keyboards import botones_volver, menu_resultados
-from handlers.utils import finalizar, edit_mensaje
+from handlers.utils import finalizar, edit_mensaje, guardar_mensaje
 
 SEARCH, VIEW_ITEM = range(2)
 
@@ -75,7 +75,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["resultados"] = resultados
     context.user_data["termino"] = termino
 
-    await update.message.reply_text(texto, reply_markup=menu_resultados(resultados))
+    msg = await update.message.reply_text(texto, reply_markup=menu_resultados(resultados))
+    guardar_mensaje(update, context, msg)
     return VIEW_ITEM
 
 
@@ -122,17 +123,20 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if fotos:
                 chat_id = query.message.chat_id
                 try:
-                    await context.bot.send_media_group(
+                    media_msgs = await context.bot.send_media_group(
                         chat_id=chat_id,
                         media=[InputMediaPhoto(media=f) for f in fotos],
                     )
-                    await context.bot.send_message(
+                    for m in media_msgs:
+                        guardar_mensaje(update, context, m)
+                    msg = await context.bot.send_message(
                         chat_id=chat_id,
                         text=texto,
                         reply_markup=menu_resultados(resultados),
                     )
+                    guardar_mensaje(update, context, msg)
                 except Exception:
-                    await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=menu_resultados(resultados))
+                    msg = await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=menu_resultados(resultados))
             else:
                 await edit_mensaje(query, texto, reply_markup=menu_resultados(resultados))
 

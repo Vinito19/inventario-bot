@@ -5,6 +5,21 @@ from database import obtener_usuario
 from keyboards import menu_admin, menu_usuario
 
 
+def guardar_mensaje(update_or_msg, context, msg):
+    if msg and hasattr(msg, "message_id"):
+        context.user_data.setdefault("msgs", []).append(msg.message_id)
+
+
+async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE):
+    ids = context.user_data.pop("msgs", [])
+    chat_id = context._chat_id
+    for mid in ids:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=mid)
+        except Exception:
+            pass
+
+
 async def edit_mensaje(query, texto, reply_markup=None):
     if query.message is None:
         return
@@ -20,18 +35,21 @@ async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     from handlers.agregar import eliminar_fotos
     await eliminar_fotos(context)
+    await borrar_mensajes(context)
 
     user_id = query.from_user.id
     usuario = obtener_usuario(user_id)
 
     if query.data == "inicio":
+        chat_id = query.message.chat_id
         if usuario and usuario["rol"] == "admin" and usuario["activo"] == 1:
-            await edit_mensaje(query, "👑 Panel de administrador:", reply_markup=menu_admin())
+            await context.bot.send_message(chat_id=chat_id, text="👑 Panel de administrador:", reply_markup=menu_admin())
         elif usuario and usuario["activo"] == 1:
-            await edit_mensaje(query, f"👋 Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
+            await context.bot.send_message(chat_id=chat_id, text=f"👋 Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
         else:
-            await edit_mensaje(query, "❌ No tienes acceso al bot.")
+            await context.bot.send_message(chat_id=chat_id, text="❌ No tienes acceso al bot.")
     else:
-        await edit_mensaje(query, "❌ Operación cancelada.")
+        chat_id = query.message.chat_id
+        await context.bot.send_message(chat_id=chat_id, text="❌ Operación cancelada.")
 
     return ConversationHandler.END

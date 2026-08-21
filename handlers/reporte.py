@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 
 from database import obtener_resumen, esta_registrado, es_admin
-from handlers.utils import edit_mensaje
+from handlers.utils import edit_mensaje, guardar_mensaje
 from keyboards import botones_volver
 from excel_export import generar_excel
 
@@ -49,7 +49,8 @@ async def start_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard.append([InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")])
 
-    await update.message.reply_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
+    msg = await update.message.reply_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
+    guardar_mensaje(update, context, msg)
 
 
 async def callback_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):

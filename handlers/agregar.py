@@ -10,7 +10,7 @@ from database import (
     es_admin,
 )
 from keyboards import menu_categorias, menu_confirmar, botones_volver
-from handlers.utils import finalizar, edit_mensaje
+from handlers.utils import finalizar, edit_mensaje, guardar_mensaje
 
 SELECT_CATEGORY, PHOTO_1, PHOTO_2, PHOTO_3, PHOTO_4, CODIGO, NOMBRE, DESCRIPCION, CANTIDAD, PRECIO, UBICACION, CONFIRMAR = range(12)
 
@@ -168,16 +168,18 @@ async def photo_1(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_id = obtener_file_id(update)
     if file_id:
         context.user_data["file_ids"] = [file_id]
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             "✅ Foto 1 recibida\n\n"
             "📷 Foto 2 de 4: Vista lateral\n\n"
             "Envía la vista lateral del repuesto.\n\n"
             "━━━━━━━━━━━━━━━━━━░░░░░░ 50%",
             reply_markup=botones_volver(),
         )
+        guardar_mensaje(update, context, msg)
         return PHOTO_2
 
-    await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    guardar_mensaje(update, context, msg)
     return PHOTO_1
 
 
@@ -185,16 +187,18 @@ async def photo_2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_id = obtener_file_id(update)
     if file_id:
         context.user_data["file_ids"].append(file_id)
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             "✅ Foto 2 recibida\n\n"
             "📷 Foto 3 de 4: Detalle/número de parte\n\n"
             "Envía foto del detalle o número de parte visible.\n\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━░░ 75%",
             reply_markup=botones_volver(),
         )
+        guardar_mensaje(update, context, msg)
         return PHOTO_3
 
-    await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    guardar_mensaje(update, context, msg)
     return PHOTO_2
 
 
@@ -202,16 +206,18 @@ async def photo_3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_id = obtener_file_id(update)
     if file_id:
         context.user_data["file_ids"].append(file_id)
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             "✅ Foto 3 recibida\n\n"
             "📷 Foto 4 de 4: Otra vista\n\n"
             "Envía la última foto del repuesto.\n\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100%",
             reply_markup=botones_volver(),
         )
+        guardar_mensaje(update, context, msg)
         return PHOTO_4
 
-    await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    guardar_mensaje(update, context, msg)
     return PHOTO_3
 
 
@@ -219,85 +225,96 @@ async def photo_4(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_id = obtener_file_id(update)
     if file_id:
         context.user_data["file_ids"].append(file_id)
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             "✅ 4 fotos recibidas correctamente\n\n"
             "📝 Escribe el CÓDIGO del repuesto:\n"
             "(Ejemplo: BRK-001)",
             reply_markup=botones_volver(),
         )
+        guardar_mensaje(update, context, msg)
         return CODIGO
 
-    await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    guardar_mensaje(update, context, msg)
     return PHOTO_4
 
 
 async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     codigo_texto = update.message.text.strip()
     if not codigo_texto:
-        await update.message.reply_text("⚠️ El código no puede estar vacío. Intenta de nuevo:")
+        msg = await update.message.reply_text("⚠️ El código no puede estar vacío. Intenta de nuevo:")
+        guardar_mensaje(update, context, msg)
         return CODIGO
 
     existente = obtener_repuesto(codigo_texto)
     if existente:
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             f"⚠️ Ya existe un repuesto con el código '{codigo_texto}'.\n"
             f"Intenta con otro código:"
         )
+        guardar_mensaje(update, context, msg)
         return CODIGO
 
     context.user_data["codigo"] = codigo_texto
-    await update.message.reply_text(
+    msg = await update.message.reply_text(
         f"✅ Código: {codigo_texto}\n\n"
         f"📝 Escribe el NOMBRE del repuesto:\n"
         f"(Ejemplo: Pastillas de freno)",
         reply_markup=botones_volver(),
     )
+    guardar_mensaje(update, context, msg)
     return NOMBRE
 
 
 async def nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre_texto = update.message.text.strip()
     if not nombre_texto:
-        await update.message.reply_text("⚠️ El nombre no puede estar vacío. Intenta de nuevo:")
+        msg = await update.message.reply_text("⚠️ El nombre no puede estar vacío. Intenta de nuevo:")
+        guardar_mensaje(update, context, msg)
         return NOMBRE
 
     context.user_data["nombre"] = nombre_texto
-    await update.message.reply_text(
+    msg = await update.message.reply_text(
         f"✅ Nombre: {nombre_texto}\n\n"
         f"📝 Escribe la DESCRIPCIÓN:\n"
         f"(Ejemplo: Pastillas cerámicas universales 2020-2024)",
         reply_markup=botones_volver(),
     )
+    guardar_mensaje(update, context, msg)
     return DESCRIPCION
 
 
 async def descripcion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     if not texto:
-        await update.message.reply_text("⚠️ La descripción no puede estar vacía. Intenta de nuevo:")
+        msg = await update.message.reply_text("⚠️ La descripción no puede estar vacía. Intenta de nuevo:")
+        guardar_mensaje(update, context, msg)
         return DESCRIPCION
     context.user_data["descripcion"] = texto
-    await update.message.reply_text(
+    msg = await update.message.reply_text(
         "📝 Escribe la CANTIDAD en stock:\n"
         "(Solo números)",
         reply_markup=botones_volver(),
     )
+    guardar_mensaje(update, context, msg)
     return CANTIDAD
 
 
 async def cantidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     if not texto.isdigit():
-        await update.message.reply_text("⚠️ Debes escribir un número entero. Intenta de nuevo:")
+        msg = await update.message.reply_text("⚠️ Debes escribir un número entero. Intenta de nuevo:")
+        guardar_mensaje(update, context, msg)
         return CANTIDAD
 
     context.user_data["cantidad"] = int(texto)
-    await update.message.reply_text(
+    msg = await update.message.reply_text(
         f"✅ Cantidad: {texto}\n\n"
         f"📝 Escribe el PRECIO:\n"
         f"(Ejemplo: 185.00)",
         reply_markup=botones_volver(),
     )
+    guardar_mensaje(update, context, msg)
     return PRECIO
 
 
@@ -306,23 +323,26 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         precio_valor = float(texto)
     except ValueError:
-        await update.message.reply_text("⚠️ Debes escribir un número válido. Intenta de nuevo:")
+        msg = await update.message.reply_text("⚠️ Debes escribir un número válido. Intenta de nuevo:")
+        guardar_mensaje(update, context, msg)
         return PRECIO
 
     context.user_data["precio"] = precio_valor
-    await update.message.reply_text(
+    msg = await update.message.reply_text(
         f"✅ Precio: ${precio_valor:.2f}\n\n"
         f"📝 Escribe la UBICACIÓN:\n"
         f"(Ejemplo: Estante A-3)",
         reply_markup=botones_volver(),
     )
+    guardar_mensaje(update, context, msg)
     return UBICACION
 
 
 async def ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     if not texto:
-        await update.message.reply_text("⚠️ La ubicación no puede estar vacía. Intenta de nuevo:")
+        msg = await update.message.reply_text("⚠️ La ubicación no puede estar vacía. Intenta de nuevo:")
+        guardar_mensaje(update, context, msg)
         return UBICACION
     context.user_data["ubicacion"] = texto
 
