@@ -162,29 +162,45 @@ async def compartir_whatsapp(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return VIEW_ITEM
 
     texto = (
-        "📦 *REPUESTO PARA COMPARTIR*\n"
+        "📦 *REPUESTO*\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"*Código:* {repuesto['codigo']}\n"
         f"*Nombre:* {repuesto['nombre']}\n"
         f"*Categoría:* {repuesto['categoria_nombre'] or 'Sin categoría'}\n"
         f"*Descripción:* {repuesto['descripcion']}\n"
-        f"*Stock:* {repuesto['cantidad']} unidades\n"
-        f"*Precio:* ${repuesto['precio']:.2f}\n"
-        f"*Ubicación:* {repuesto['ubicacion'] or 'Sin ubicación'}\n\n"
+        f"*Precio:* ${repuesto['precio']:.2f}\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "_Enviado desde Inventario VCH_"
     )
 
-    # Guardamos el repuesto actual para que el botón funcione
-    context.user_data["repuesto_compartir"] = repuesto
+    fotos = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
 
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📋 Copiar texto para WhatsApp", callback_data="copiar_texto_wa")],
-        [InlineKeyboardButton("❌ Cerrar", callback_data="inicio")],
-    ])
+    chat_id = query.message.chat_id
+    if fotos:
+        try:
+            media_msgs = await context.bot.send_media_group(
+                chat_id=chat_id,
+                media=[InputMediaPhoto(media=f) for f in fotos],
+                caption=texto,
+            )
+            for m in media_msgs:
+                guardar_mensaje(update, context, m)
+            mensaje = media_msgs[0] if media_msgs else None
+        except Exception:
+            mensaje = await context.bot.send_message(chat_id=chat_id, text=texto)
+            guardar_mensaje(update, context, mensaje)
+    else:
+        mensaje = await context.bot.send_message(chat_id=chat_id, text=texto)
+        guardar_mensaje(update, context, mensaje)
 
-    await edit_mensaje(query, texto, reply_markup=keyboard)
+    instrucciones = (
+        "✅ Listo, se enviaron las fotos con el texto.\n\n"
+        "**Para compartirlas a cualquier app** (WhatsApp, Signal, correo, etc.):\n\n"
+        "1️⃣ Mantén presionado el mensaje de las fotos (el que acabo de enviar)\n"
+        "2️⃣ Pulsa el icono de **compartir** (⬆️)\n"
+        "3️⃣ Elige la app: WhatsApp, Signal, correo, etc.\n\n"
+        "Las fotos y el texto se envían juntos."
+    )
+    await context.bot.send_message(chat_id=chat_id, text=instrucciones)
     return VIEW_ITEM
 
 
@@ -201,7 +217,7 @@ buscar_handler = ConversationHandler(
     states={
         SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, search)],
         VIEW_ITEM: [
-            CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+|compartir_whatsapp|copiar_texto_wa)$"),
+            CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+|compartir_whatsapp)$"),
         ],
     },
     fallbacks=[
