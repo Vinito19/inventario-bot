@@ -177,21 +177,15 @@ async def compartir_whatsapp(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if fotos:
         try:
-            from telegram import InputFile
-            archivos = []
-            for i, file_id in enumerate(fotos, 1):
-                archivo = await context.bot.get_file(file_id)
-                datos = await archivo.download_as_bytearray()
-                archivos.append(InputFile(datos, filename=f"{repuesto['codigo']}_{i}.jpg"))
-            doc_msgs = await context.bot.send_media_group(
-                chat_id=chat_id,
-                media=[InputMediaDocument(m, caption=texto if i == 0 else None) for i, m in enumerate(archivos)],
-            )
+            from telegram import InputMediaDocument
+            media = []
+            for i, file_id in enumerate(fotos):
+                media.append(InputMediaDocument(media=file_id, filename=f"{repuesto['codigo']}_{i+1}.jpg", caption=texto if i == 0 else None))
+            doc_msgs = await context.bot.send_media_group(chat_id=chat_id, media=media)
             for m in doc_msgs:
                 guardar_mensaje(update, context, m)
-        except Exception:
-            doc_msgs = []
-            msg_txt = await context.bot.send_message(chat_id=chat_id, text=texto)
+        except Exception as e:
+            msg_txt = await context.bot.send_message(chat_id=chat_id, text=texto + f"\n\n⚠️ Error enviando fotos: {e}")
             guardar_mensaje(update, context, msg_txt)
     else:
         msg_txt = await context.bot.send_message(chat_id=chat_id, text=texto)
