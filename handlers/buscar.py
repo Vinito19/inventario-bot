@@ -173,34 +173,40 @@ async def compartir_whatsapp(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
     fotos = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
-
     chat_id = query.message.chat_id
+
     if fotos:
         try:
-            media_msgs = await context.bot.send_media_group(
+            from telegram import InputFile
+            archivos = []
+            for i, file_id in enumerate(fotos, 1):
+                archivo = await context.bot.get_file(file_id)
+                datos = await archivo.download_as_bytearray()
+                archivos.append(InputFile(datos, filename=f"{repuesto['codigo']}_{i}.jpg"))
+            doc_msgs = await context.bot.send_media_group(
                 chat_id=chat_id,
-                media=[InputMediaPhoto(media=f) for f in fotos],
-                caption=texto,
+                media=[InputMediaDocument(m, caption=texto if i == 0 else None) for i, m in enumerate(archivos)],
             )
-            for m in media_msgs:
+            for m in doc_msgs:
                 guardar_mensaje(update, context, m)
-            mensaje = media_msgs[0] if media_msgs else None
         except Exception:
-            mensaje = await context.bot.send_message(chat_id=chat_id, text=texto)
-            guardar_mensaje(update, context, mensaje)
+            doc_msgs = []
+            msg_txt = await context.bot.send_message(chat_id=chat_id, text=texto)
+            guardar_mensaje(update, context, msg_txt)
     else:
-        mensaje = await context.bot.send_message(chat_id=chat_id, text=texto)
-        guardar_mensaje(update, context, mensaje)
+        msg_txt = await context.bot.send_message(chat_id=chat_id, text=texto)
+        guardar_mensaje(update, context, msg_txt)
 
     instrucciones = (
-        "✅ Listo, se enviaron las fotos con el texto.\n\n"
+        "✅ Se enviaron las **fotos como documentos** con el texto.\n\n"
         "**Para compartirlas a cualquier app** (WhatsApp, Signal, correo, etc.):\n\n"
-        "1️⃣ Mantén presionado el mensaje de las fotos (el que acabo de enviar)\n"
-        "2️⃣ Pulsa el icono de **compartir** (⬆️)\n"
+        "1️⃣ Pulsa la primera foto (se abre)\n"
+        "2️⃣ Arriba a la derecha toca el icono de **compartir** (⬆️)\n"
         "3️⃣ Elige la app: WhatsApp, Signal, correo, etc.\n\n"
-        "Las fotos y el texto se envían juntos."
+        "Así podrás enviarlas junto con el texto."
     )
-    await context.bot.send_message(chat_id=chat_id, text=instrucciones)
+    msg_inst = await context.bot.send_message(chat_id=chat_id, text=instrucciones, reply_markup=botones_volver())
+    guardar_mensaje(update, context, msg_inst)
     return VIEW_ITEM
 
 
