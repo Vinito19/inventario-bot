@@ -2,7 +2,7 @@ from telegram import Update, InputMediaPhoto
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
 from database import buscar_repuestos, obtener_repuesto, esta_registrado
-from keyboards import botones_volver, menu_resultados
+from keyboards import botones_volver, menu_resultados, menu_detalle_repuesto
 from handlers.utils import finalizar, edit_mensaje, guardar_mensaje
 
 SEARCH, VIEW_ITEM = range(2)
@@ -99,6 +99,9 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return SEARCH
 
+    if data == "compartir_whatsapp":
+        return await compartir_whatsapp(update, context)
+
     if data.startswith("ver_"):
         idx = int(data.replace("ver_", "")) - 1
         resultados = context.user_data.get("resultados", [])
@@ -129,19 +132,59 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                     for m in media_msgs:
                         guardar_mensaje(update, context, m)
+                    # Guardamos el repuesto actual para el botón de compartir
+                    context.user_data["repuesto_compartir"] = repuesto
                     msg = await context.bot.send_message(
                         chat_id=chat_id,
                         text=texto,
-                        reply_markup=menu_resultados(resultados),
+                        reply_markup=menu_detalle_repuesto(),
                     )
                     guardar_mensaje(update, context, msg)
                 except Exception:
-                    msg = await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=menu_resultados(resultados))
+                    context.user_data["repuesto_compartir"] = repuesto
+                    msg = await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=menu_detalle_repuesto())
             else:
-                await edit_mensaje(query, texto, reply_markup=menu_resultados(resultados))
+                context.user_data["repuesto_compartir"] = repuesto
+                await edit_mensaje(query, texto, reply_markup=menu_detalle_repuesto())
 
         return VIEW_ITEM
 
+    return VIEW_ITEM
+
+
+async def compartir_whatsapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    repuesto = context.user_data.get("repuesto_compartir")
+    if not repuesto:
+        await edit_mensaje(query, "❌ No hay repuesto seleccionado para compartir.", reply_markup=botones_volver())
+        return VIEW_ITEM
+
+    texto = (
+        "📦 *REPUESTO PARA COMPARTIR*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"*Código:* {repuesto['codigo']}\n"
+        f"*Nombre:* {repuesto['nombre']}\n"
+        f"*Categoría:* {repuesto['categoria_nombre'] or 'Sin categoría'}\n"
+        f"*Descripción:* {repuesto['descripcion']}\n"
+        f"*Stock:* {repuesto['cantidad']} unidades\n"
+        f"*Precio:* ${repuesto['precio']:.2f}\n"
+        f"*Ubicación:* {repuesto['ubicacion'] or 'Sin ubicación'}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "_Enviado desde Inventario VCH_"
+    )
+
+    # Guardamos el repuesto actual para que el botón funcione
+    context.user_data["repuesto_compartir"] = repuesto
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 Copiar texto para WhatsApp", callback_data="copiar_texto_wa")],
+        [InlineKeyboardButton("❌ Cerrar", callback_data="inicio")],
+    ])
+
+    await edit_mensaje(query, texto, reply_markup=keyboard)
     return VIEW_ITEM
 
 
@@ -157,7 +200,9 @@ buscar_handler = ConversationHandler(
     ],
     states={
         SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, search)],
-        VIEW_ITEM: [CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+)$")],
+        VIEW_ITEM: [
+            CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+|compartir_whatsapp|copiar_texto_wa)$"),
+        ],
     },
     fallbacks=[
         CommandHandler("cancel", cancel_buscar),
