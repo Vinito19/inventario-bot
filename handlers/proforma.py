@@ -1,3 +1,4 @@
+import os
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
@@ -36,9 +37,16 @@ async def receive_logo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.message.photo:
         file_id = update.message.photo[-1].file_id
+        # Descargar y guardar logo localmente
+        archivo = await context.bot.get_file(file_id)
+        logo_path = os.path.join(os.getcwd(), "logo_vch.jpg")
+        await archivo.download_to_drive(logo_path)
+        
         set_config("logo_file_id", file_id)
+        set_config("logo_path", logo_path)
+        
         await update.message.reply_text(
-            f"✅ Logo guardado correctamente.\nFile ID: `{file_id}`",
+            f"✅ Logo guardado correctamente.\nFile ID: `{file_id}`\nGuardado en: `{logo_path}`",
             reply_markup=botones_volver(),
         )
         return ConversationHandler.END
