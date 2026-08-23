@@ -100,8 +100,8 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return SEARCH
 
-    if data == "compartir_whatsapp":
-        return await compartir_whatsapp(update, context)
+    if data == "proforma":
+        return await proforma_callback(update, context)
 
     if data.startswith("ver_"):
         idx = int(data.replace("ver_", "")) - 1
