@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler
 from database import buscar_repuestos, obtener_repuesto, esta_registrado
 from keyboards import botones_volver, menu_resultados, menu_detalle_repuesto
 from handlers.utils import finalizar, edit_mensaje, guardar_mensaje
+from handlers.proforma import proforma_callback
 
 SEARCH, VIEW_ITEM = range(2)
 
@@ -152,58 +153,6 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return VIEW_ITEM
 
 
-async def compartir_whatsapp(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    repuesto = context.user_data.get("repuesto_compartir")
-    if not repuesto:
-        await edit_mensaje(query, "❌ No hay repuesto seleccionado para compartir.", reply_markup=botones_volver())
-        return VIEW_ITEM
-
-    texto = (
-        "📦 *REPUESTO*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"*Nombre:* {repuesto['nombre']}\n"
-        f"*Categoría:* {repuesto['categoria_nombre'] or 'Sin categoría'}\n"
-        f"*Descripción:* {repuesto['descripcion']}\n"
-        f"*Precio:* ${repuesto['precio']:.2f}\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "_Enviado desde Inventario VCH_"
-    )
-
-    fotos = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
-    chat_id = query.message.chat_id
-
-    if fotos:
-        try:
-            from telegram import InputMediaDocument
-            media = []
-            for i, file_id in enumerate(fotos):
-                media.append(InputMediaDocument(media=file_id, filename=f"{repuesto['codigo']}_{i+1}.jpg", caption=texto if i == 0 else None))
-            doc_msgs = await context.bot.send_media_group(chat_id=chat_id, media=media)
-            for m in doc_msgs:
-                guardar_mensaje(update, context, m)
-        except Exception as e:
-            msg_txt = await context.bot.send_message(chat_id=chat_id, text=texto + f"\n\n⚠️ Error enviando fotos: {e}")
-            guardar_mensaje(update, context, msg_txt)
-    else:
-        msg_txt = await context.bot.send_message(chat_id=chat_id, text=texto)
-        guardar_mensaje(update, context, msg_txt)
-
-    instrucciones = (
-        "✅ Se enviaron las **fotos como documentos** con el texto.\n\n"
-        "**Para compartirlas a cualquier app** (WhatsApp, Signal, correo, etc.):\n\n"
-        "1️⃣ Pulsa la primera foto (se abre)\n"
-        "2️⃣ Arriba a la derecha toca el icono de **compartir** (⬆️)\n"
-        "3️⃣ Elige la app: WhatsApp, Signal, correo, etc.\n\n"
-        "Así podrás enviarlas junto con el texto."
-    )
-    msg_inst = await context.bot.send_message(chat_id=chat_id, text=instrucciones, reply_markup=botones_volver())
-    guardar_mensaje(update, context, msg_inst)
-    return VIEW_ITEM
-
-
 async def cancel_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Búsqueda cancelada.", reply_markup=botones_volver())
     return ConversationHandler.END
@@ -217,7 +166,7 @@ buscar_handler = ConversationHandler(
     states={
         SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, search)],
         VIEW_ITEM: [
-            CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+|compartir_whatsapp)$"),
+            CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+|proforma)$"),
         ],
     },
     fallbacks=[

@@ -18,6 +18,7 @@ from handlers.limpiar import limpiar_handler
 from handlers.reporte import reporte_handler, reporte_callback_handler, exportar_excel_handler, ver_stock_cero_handler
 from handlers.categorias import categorias_handler
 from handlers.usuarios import usuarios_handler
+from handlers.proforma import proforma_callback_handler, setlogo_handler
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -71,6 +72,9 @@ def main():
 
     app.add_handler(categorias_handler)
     app.add_handler(usuarios_handler)
+
+    app.add_handler(setlogo_handler)
+    app.add_handler(proforma_callback_handler)
 
     app.add_handler(inicio_callback_handler)
 

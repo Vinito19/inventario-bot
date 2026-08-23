@@ -100,7 +100,7 @@ def menu_resultados(resultados):
 
 def menu_detalle_repuesto():
     keyboard = [
-        [InlineKeyboardButton("📤 Compartir", callback_data="compartir_whatsapp")],
+        [InlineKeyboardButton("📄 Proforma", callback_data="proforma")],
         [InlineKeyboardButton("🔍 Nueva búsqueda", callback_data="buscar")],
         [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],
     ]

@@ -44,6 +44,11 @@ def init_db():
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (categoria_id) REFERENCES categorias(id)
             );
+
+            CREATE TABLE IF NOT EXISTS configuracion (
+                clave TEXT PRIMARY KEY,
+                valor TEXT
+            );
         """)
         conn.commit()
     finally:
@@ -359,5 +364,29 @@ def obtener_resumen():
             "por_categoria": por_categoria,
             "sin_categoria": sin_categoria,
         }
+    finally:
+        conn.close()
+
+
+def get_config(clave):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT valor FROM configuracion WHERE clave = ?", (clave,))
+        row = cursor.fetchone()
+        return row["valor"] if row else None
+    finally:
+        conn.close()
+
+
+def set_config(clave, valor):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)",
+            (clave, valor),
+        )
+        conn.commit()
     finally:
         conn.close()
