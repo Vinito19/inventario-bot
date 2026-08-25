@@ -115,11 +115,13 @@ async def exportar_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         archivo = generar_excel()
         with open(archivo, "rb") as f:
-            await context.bot.send_document(
+            doc_msg = await context.bot.send_document(
                 chat_id=user_id,
                 document=f,
                 caption="📊 Inventario exportado correctamente",
             )
+        guardar_mensaje(update, context, doc_msg)
+
         await edit_mensaje(query, "✅ Archivo Excel enviado!", reply_markup=botones_volver())
     except Exception as e:
         await edit_mensaje(
