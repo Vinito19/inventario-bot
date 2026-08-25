@@ -5,6 +5,7 @@ from database import (
     obtener_categorias,
     agregar_categoria,
     eliminar_categoria,
+    obtener_categoria_por_nombre,
     esta_registrado,
     es_admin,
 )
@@ -127,12 +128,7 @@ async def add_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ADD_CATEGORY
 
     try:
-        existente = None
-        for cat in obtener_categorias():
-            if cat["nombre"].lower() == nombre.lower():
-                existente = cat
-                break
-
+        existente = obtener_categoria_por_nombre(nombre)
         if existente:
             await update.message.reply_text(
                 "⚠️ Ya existe una categoría con ese nombre. Intenta con otro:"

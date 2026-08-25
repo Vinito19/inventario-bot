@@ -80,7 +80,7 @@ def main():
 
     hora_backup = time(config.BACKUP_HORA, config.BACKUP_MINUTO)
     app.job_queue.run_daily(enviar_backup, time=hora_backup, days=tuple(range(7)))
-    print(f"[OK] Backup diario programado a las {config.HORA_BACKUP}")
+    print(f"[OK] Backup diario programado a las {config.BACKUP_HORA:02d}:{config.BACKUP_MINUTO:02d}")
 
     print("[OK] Bot iniciado correctamente")
     app.run_polling()

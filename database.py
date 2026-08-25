@@ -268,7 +268,7 @@ def editar_repuesto(codigo, campo, valor):
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("UPDATE repuestos SET {} = ? WHERE codigo = ?".format(campo), (valor, codigo))
+        cursor.execute(f"UPDATE repuestos SET {campo} = ? WHERE codigo = ?", (valor, codigo))
         conn.commit()
     finally:
         conn.close()

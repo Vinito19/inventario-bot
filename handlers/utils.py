@@ -12,7 +12,21 @@ def guardar_mensaje(update_or_msg, context, msg):
 
 async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE):
     ids = context.user_data.pop("msgs", [])
-    chat_id = context._chat_id
+    chat_id = getattr(context, "_chat_id", None)
+    if not chat_id:
+        return
+    for mid in ids:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=mid)
+        except Exception:
+            pass
+
+
+async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE):
+    ids = context.user_data.pop("photo_msg_ids", [])
+    chat_id = getattr(context, "_chat_id", None)
+    if not chat_id:
+        return
     for mid in ids:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=mid)
@@ -33,7 +47,6 @@ async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    from handlers.agregar import eliminar_fotos
     await eliminar_fotos(context)
     await borrar_mensajes(context)
 

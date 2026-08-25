@@ -1,4 +1,5 @@
 import os
+import tempfile
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
@@ -37,7 +38,6 @@ async def receive_logo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.message.photo:
         file_id = update.message.photo[-1].file_id
-        # Descargar y guardar logo localmente
         archivo = await context.bot.get_file(file_id)
         logo_path = os.path.join(os.getcwd(), "logo_vch.jpg")
         await archivo.download_to_drive(logo_path)
@@ -62,16 +62,22 @@ async def proforma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     repuesto = context.user_data.get("repuesto_compartir")
     if not repuesto:
         await edit_mensaje(query, "❌ No hay repuesto seleccionado.", reply_markup=botones_volver())
-        return VIEW_ITEM
+        return ConversationHandler.END
 
-    fotos = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
-    if not fotos:
+    file_ids = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
+    if not file_ids:
         await edit_mensaje(query, "❌ El repuesto no tiene fotos.", reply_markup=botones_volver())
-        return VIEW_ITEM
+        return ConversationHandler.END
 
+    temp_paths = []
     try:
-        from pdf_proforma import generar_proforma
-        ruta = generar_proforma(repuesto, fotos)
+        for file_id in file_ids:
+            archivo = await context.bot.get_file(file_id)
+            tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+            await archivo.download_to_drive(tmp.name)
+            temp_paths.append(tmp.name)
+
+        ruta = generar_proforma(repuesto, temp_paths)
 
         chat_id = query.message.chat_id
         with open(ruta, "rb") as f:
@@ -88,15 +94,18 @@ async def proforma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=botones_volver(),
         )
 
-        import os
         os.remove(ruta)
     except Exception as e:
         await context.bot.send_message(query.message.chat_id, f"❌ Error generando proforma: {e}")
+    finally:
+        for p in temp_paths:
+            try:
+                os.remove(p)
+            except Exception:
+                pass
 
-    return VIEW_ITEM
+    return ConversationHandler.END
 
-
-VIEW_ITEM = "VIEW_ITEM"  # placeholder
 
 setlogo_handler = ConversationHandler(
     entry_points=[CommandHandler("setlogo", set_logo_cmd)],

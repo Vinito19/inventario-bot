@@ -267,8 +267,12 @@ async def cambiar_estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
         return CONFIRMAR_DELETE
 
-    if usuario["rol"] == "admin" and usuario["activo"] == 1 and usuario["activo"] == query.data.split("_")[2]:
-        pass
+    # Evitar desactivar al último admin activo
+    if usuario["rol"] == "admin" and usuario["activo"] == 1:
+        admin_count = contar_admins_activos()
+        if admin_count <= 1:
+            await edit_mensaje(query, "⚠️ No se puede desactivar al último administrador.", reply_markup=botones_volver())
+            return CONFIRMAR_DELETE
 
     nuevo_estado = 0 if usuario["activo"] else 1
     cambiar_estado_usuario(uid, nuevo_estado)

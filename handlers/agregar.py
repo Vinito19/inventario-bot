@@ -10,20 +10,11 @@ from database import (
     es_admin,
 )
 from keyboards import menu_categorias, menu_confirmar, botones_volver
-from handlers.utils import finalizar, edit_mensaje, guardar_mensaje
+from handlers.utils import finalizar, edit_mensaje, guardar_mensaje, eliminar_fotos
 
 SELECT_CATEGORY, PHOTO_1, PHOTO_2, PHOTO_3, PHOTO_4, CODIGO, NOMBRE, DESCRIPCION, CANTIDAD, PRECIO, UBICACION, CONFIRMAR = range(12)
 
 FILTRO_IMAGEN = filters.PHOTO | filters.Document.IMAGE
-
-
-async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE):
-    ids = context.user_data.pop("photo_msg_ids", [])
-    for mid in ids:
-        try:
-            await context.bot.delete_message(chat_id=context._chat_id, message_id=mid)
-        except Exception:
-            pass
 
 
 def obtener_file_id(update: Update):
