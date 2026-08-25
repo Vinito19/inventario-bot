@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 
 from database import obtener_resumen, esta_registrado, es_admin
-from handlers.utils import edit_mensaje, guardar_mensaje
+from handlers.utils import edit_mensaje, guardar_mensaje, borrar_mensajes
 from keyboards import botones_volver
 from excel_export import generar_excel
 
@@ -109,6 +109,9 @@ async def exportar_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_admin(user_id):
         await edit_mensaje(query, "❌ Solo el administrador puede exportar a Excel.")
         return
+
+    # Limpiar mensajes previos guardados (documentos de exportaciones anteriores)
+    await borrar_mensajes(context, chat_id=user_id)
 
     await edit_mensaje(query, "⏳ Generando archivo Excel...")
 

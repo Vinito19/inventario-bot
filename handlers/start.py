@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 import config
 from database import obtener_usuario, registrar_usuario, aprobar_usuario, cambiar_estado_usuario, es_admin
 from keyboards import menu_admin, menu_usuario, botones_admin_aprobar_rechazar
-from handlers.utils import edit_mensaje
+from handlers.utils import edit_mensaje, borrar_mensajes, eliminar_fotos
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -69,6 +69,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def callback_inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
+    # Limpiar mensajes temporales (fotos y documentos) al volver al menú
+    await eliminar_fotos(context, query.message.chat_id)
+    await borrar_mensajes(context, query.message.chat_id)
 
     user_id = query.from_user.id
     usuario = obtener_usuario(user_id)
