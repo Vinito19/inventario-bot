@@ -11,3 +11,5 @@ temp/
 logo_vch.jpg
 mockup_proforma.*
 proforma_*.pdf
+.pytest_cache/
+pytest.ini

@@ -1,6 +1,8 @@
 import os
 import sys
 import tempfile
+import shutil
+import atexit
 
 # Asegurar que el proyecto raiz sea importable
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +21,38 @@ database.DB_NAME = os.path.join(_TMPDIR, "test_inventario.db")
 DB_NAME_TEST = database.DB_NAME
 
 import pytest
+
+
+def _cleanup_temp_dir():
+    """Limpia el directorio temporal al salir."""
+    try:
+        if os.path.exists(_TMPDIR):
+            shutil.rmtree(_TMPDIR, ignore_errors=True)
+    except Exception:
+        pass
+
+
+# Registrar limpieza automática al finalizar la sesión de pytest
+atexit.register(_cleanup_temp_dir)
+
+
+# Limpieza de cachés y artefactos al inicio de la sesión
+def pytest_sessionstart(session):
+    """Limpia cachés y archivos temporales antes de empezar."""
+    for cache_dir in [".pytest_cache", "__pycache__", "tests/__pycache__", "handlers/__pycache__"]:
+        path = os.path.join(ROOT, cache_dir)
+        if os.path.exists(path):
+            shutil.rmtree(path, ignore_errors=True)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Limpia al terminar la sesión completa."""
+    _cleanup_temp_dir()
+    # Limpiar cachés residuales
+    for cache_dir in [".pytest_cache", "__pycache__", "tests/__pycache__", "handlers/__pycache__"]:
+        path = os.path.join(ROOT, cache_dir)
+        if os.path.exists(path):
+            shutil.rmtree(path, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)
