@@ -173,7 +173,7 @@ async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(
             query,
             "📂 Selecciona la nueva categoría:",
-            reply_markup=menu_categorias(categorias),
+            reply_markup=menu_categorias(categorias, puede_agregar=es_admin(query.from_user.id)),
         )
         return EDIT_VALUE
 
@@ -324,6 +324,14 @@ async def edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=menu_confirmar(),
         )
         return CONFIRMAR
+
+    if query and data == "agregar_categoria":
+        await edit_mensaje(
+            query,
+            "📝 Escribe el nombre de la nueva categoría:",
+            reply_markup=botones_volver(),
+        )
+        return ADD_CAT_NAME
 
     return EDIT_VALUE
 

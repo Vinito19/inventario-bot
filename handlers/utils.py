@@ -38,9 +38,8 @@ async def edit_mensaje(query, texto, reply_markup=None):
     if query.message is None:
         return
     if query.message.photo:
-        await query.edit_message_caption(caption=texto, reply_markup=reply_markup)
-    else:
-        await query.edit_message_text(texto, reply_markup=reply_markup)
+        return await query.edit_message_caption(caption=texto, reply_markup=reply_markup)
+    return await query.edit_message_text(texto, reply_markup=reply_markup)
 
 
 async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):

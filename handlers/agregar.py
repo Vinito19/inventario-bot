@@ -150,7 +150,7 @@ async def nuevo_nombre_categoria(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text(
         f"✅ Categoría '{nombre}' creada correctamente.\n\n"
         f"Selecciona la categoría del repuesto:",
-        reply_markup=menu_categorias(categorias),
+        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id)),
     )
     return SELECT_CATEGORY
 
