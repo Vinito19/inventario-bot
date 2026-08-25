@@ -8,3 +8,6 @@ __pycache__/
 *.log
 temp/
 *.xlsx
+logo_vch.jpg
+mockup_proforma.*
+proforma_*.pdf
