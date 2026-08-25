@@ -70,25 +70,27 @@ async def callback_inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    chat_id = query.message.chat_id
+
     # Limpiar mensajes temporales (fotos y documentos) al volver al menú
-    await eliminar_fotos(context, query.message.chat_id)
-    await borrar_mensajes(context, query.message.chat_id)
+    await eliminar_fotos(context, chat_id)
+    await borrar_mensajes(context, chat_id)
 
     user_id = query.from_user.id
     usuario = obtener_usuario(user_id)
 
     if usuario is None or usuario["activo"] == 0:
-        await edit_mensaje(query, "❌ No tienes acceso al bot.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ No tienes acceso al bot.")
         return
 
     if usuario["rol"] == "pendiente":
-        await edit_mensaje(query, "⏳ Tu solicitud esta pendiente. Espera aprobacion.")
+        await context.bot.send_message(chat_id=chat_id, text="⏳ Tu solicitud esta pendiente. Espera aprobacion.")
         return
 
     if usuario["rol"] == "admin":
-        await edit_mensaje(query, "👑 Panel de administrador:", reply_markup=menu_admin())
+        await context.bot.send_message(chat_id=chat_id, text="👑 Panel de administrador:", reply_markup=menu_admin())
     else:
-        await edit_mensaje(query, f"👋 Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
+        await context.bot.send_message(chat_id=chat_id, text=f"👋 Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
 
 
 async def callback_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
