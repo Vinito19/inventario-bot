@@ -80,12 +80,13 @@ async def proforma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ruta = generar_proforma(repuesto, temp_paths)
 
         chat_id = query.message.chat_id
-        doc_msg = await context.bot.send_document(
-            chat_id=chat_id,
-            document=f,
-            filename=f"proforma_{repuesto['codigo']}.pdf",
-            caption=f"📄 Proforma: {repuesto['nombre']} ({repuesto['codigo']})",
-        )
+        with open(ruta, "rb") as f:
+            doc_msg = await context.bot.send_document(
+                chat_id=chat_id,
+                document=f,
+                filename=f"proforma_{repuesto['codigo']}.pdf",
+                caption=f"📄 Proforma: {repuesto['nombre']} ({repuesto['codigo']})",
+            )
         guardar_mensaje(update, context, doc_msg)
 
         msg = await context.bot.send_message(
