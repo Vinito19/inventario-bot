@@ -398,7 +398,7 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 categoria_id=ud["categoria_id"],
                 ubicacion=ud["ubicacion"],
             )
-            await eliminar_fotos(context)
+            await eliminar_fotos(context, query.message.chat_id)
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
@@ -429,7 +429,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def callback_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await eliminar_fotos(context)
+    await eliminar_fotos(context, query.message.chat_id)
     await context.bot.send_message(
         chat_id=query.message.chat_id,
         text="❌ Operación cancelada.",

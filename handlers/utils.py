@@ -10,26 +10,26 @@ def guardar_mensaje(update_or_msg, context, msg):
         context.user_data.setdefault("msgs", []).append(msg.message_id)
 
 
-async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE):
+async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE, chat_id=None):
     ids = context.user_data.pop("msgs", [])
-    chat_id = getattr(context, "_chat_id", None)
-    if not chat_id:
+    cid = chat_id or getattr(context, "_chat_id", None)
+    if not cid:
         return
     for mid in ids:
         try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=mid)
+            await context.bot.delete_message(chat_id=cid, message_id=mid)
         except Exception:
             pass
 
 
-async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE):
+async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE, chat_id=None):
     ids = context.user_data.pop("photo_msg_ids", [])
-    chat_id = getattr(context, "_chat_id", None)
-    if not chat_id:
+    cid = chat_id or getattr(context, "_chat_id", None)
+    if not cid:
         return
     for mid in ids:
         try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=mid)
+            await context.bot.delete_message(chat_id=cid, message_id=mid)
         except Exception:
             pass
 
@@ -47,22 +47,21 @@ async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    await eliminar_fotos(context)
-    await borrar_mensajes(context)
+    chat_id = query.message.chat_id
+    await eliminar_fotos(context, chat_id)
+    await borrar_mensajes(context, chat_id)
 
     user_id = query.from_user.id
     usuario = obtener_usuario(user_id)
 
     if query.data == "inicio":
-        chat_id = query.message.chat_id
         if usuario and usuario["rol"] == "admin" and usuario["activo"] == 1:
-            await context.bot.send_message(chat_id=chat_id, text="👑 Panel de administrador:", reply_markup=menu_admin())
+            await context.bot.send_message(chat_id=chat_id, text="Panel de administrador:", reply_markup=menu_admin())
         elif usuario and usuario["activo"] == 1:
-            await context.bot.send_message(chat_id=chat_id, text=f"👋 Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
+            await context.bot.send_message(chat_id=chat_id, text=f"Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
         else:
-            await context.bot.send_message(chat_id=chat_id, text="❌ No tienes acceso al bot.")
+            await context.bot.send_message(chat_id=chat_id, text="No tienes acceso al bot.")
     else:
-        chat_id = query.message.chat_id
-        await context.bot.send_message(chat_id=chat_id, text="❌ Operación cancelada.")
+        await context.bot.send_message(chat_id=chat_id, text="Operacion cancelada.")
 
     return ConversationHandler.END
