@@ -15,7 +15,20 @@ from handlers.buscar import buscar_handler
 from handlers.editar import editar_handler
 from handlers.eliminar import eliminar_handler
 from handlers.limpiar import limpiar_handler
-from handlers.reporte import reporte_handler, reporte_callback_handler, exportar_excel_handler, ver_stock_cero_handler, ver_ventas_handler, exportar_ventas_handler, ver_cambios_handler, exportar_cambios_handler
+from handlers.reporte import (
+    reporte_handler,
+    reporte_callback_handler,
+    exportar_excel_handler,
+    ver_stock_cero_handler,
+    ver_ventas_handler,
+    exportar_ventas_handler,
+    ver_cambios_handler,
+    exportar_cambios_handler,
+    ver_ventas_mes_conv,
+    ver_cambios_mes_conv,
+    exportar_ventas_mes_handler,
+    exportar_cambios_mes_handler,
+)
 from handlers.categorias import categorias_handler
 from handlers.usuarios import usuarios_handler
 from handlers.vender import vender_handler
@@ -74,6 +87,11 @@ def main():
     app.add_handler(ver_ventas_handler)
     app.add_handler(exportar_ventas_handler)
     app.add_handler(ver_cambios_handler)
+    app.add_handler(exportar_cambios_handler)
+    app.add_handler(ver_ventas_mes_conv)
+    app.add_handler(ver_cambios_mes_conv)
+    app.add_handler(exportar_ventas_mes_handler)
+    app.add_handler(exportar_cambios_mes_handler)
     app.add_handler(exportar_cambios_handler)
 
     app.add_handler(categorias_handler)
