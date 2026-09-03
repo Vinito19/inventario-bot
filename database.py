@@ -1,6 +1,15 @@
 import sqlite3
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+import config
 
 DB_NAME = "inventario.db"
+
+
+def _ahora():
+    """Fecha y hora actual en la zona horaria configurada (Ecuador)."""
+    return datetime.now(ZoneInfo(config.TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def get_connection():
@@ -437,9 +446,9 @@ def registrar_venta(codigo, cantidad, precio_unitario, precio_registrado, usuari
 
         cursor.execute("UPDATE repuestos SET cantidad = ? WHERE codigo = ?", (nuevo_stock, codigo))
         cursor.execute("""
-            INSERT INTO ventas (codigo, nombre, cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (codigo, r["nombre"], cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre))
+            INSERT INTO ventas (codigo, nombre, cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre, fecha)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (codigo, r["nombre"], cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre, _ahora()))
         conn.commit()
         return {"nuevo_stock": nuevo_stock, "subtotal": subtotal, "nombre": r["nombre"]}
     except sqlite3.Error:
@@ -485,9 +494,9 @@ def registrar_cambio(codigo, campo, valor_anterior, valor_nuevo, usuario_id, usu
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO cambios (repuesto_codigo, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (codigo, campo, str(valor_anterior), str(valor_nuevo), usuario_id, usuario_nombre))
+            INSERT INTO cambios (repuesto_codigo, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre, fecha)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (codigo, campo, str(valor_anterior), str(valor_nuevo), usuario_id, usuario_nombre, _ahora()))
         conn.commit()
     finally:
         conn.close()
