@@ -29,41 +29,41 @@ async def start_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin = es_admin(user_id)
 
     texto = (
-        "REPORTE DE INVENTARIO\n"
-        "========================\n\n"
-        f"Total articulos:    {resumen['total']}\n"
-        f"Total unidades:     {resumen['unidades']}\n"
-        f"Stock en cero:      {resumen['cero']}\n"
-        f"Valor total:        ${resumen['valor']:,.2f}\n\n"
+        "📊 REPORTE DE INVENTARIO\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 Total artículos:    {resumen['total']}\n"
+        f"🔢 Total unidades:     {resumen['unidades']}\n"
+        f"🚫 Stock en cero:      {resumen['cero']}\n"
+        f"💰 Valor total:        ${resumen['valor']:,.2f}\n\n"
     )
 
     if resumen["por_categoria"]:
-        texto += "Por categoria:\n"
+        texto += "📂 Por categoría:\n"
         for cat in resumen["por_categoria"]:
-            texto += f"  * {cat['nombre']}: {cat['total']} articulos * {cat['unidades']} unidades\n"
+            texto += f"  • {cat['nombre']}: {cat['total']} artículos · {cat['unidades']} unidades\n"
 
     if resumen["sin_categoria"]:
-        texto += "\nSin categoria:\n"
+        texto += "\n📌 Sin categoría:\n"
         for s in resumen["sin_categoria"]:
-            texto += f"  * {s['total']} articulos * {s['unidades']} unidades\n"
+            texto += f"  • {s['total']} artículos · {s['unidades']} unidades\n"
 
-    texto += "\n========================"
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     keyboard = []
 
     if admin:
-        keyboard.append([InlineKeyboardButton("Exportar a Excel", callback_data="exportar_excel")])
-        keyboard.append([InlineKeyboardButton("Ver ventas", callback_data="ver_ventas")])
-        keyboard.append([InlineKeyboardButton("Ventas por mes", callback_data="ver_ventas_mes")])
-        keyboard.append([InlineKeyboardButton("Ver cambios", callback_data="ver_cambios")])
-        keyboard.append([InlineKeyboardButton("Cambios por mes", callback_data="ver_cambios_mes")])
+        keyboard.append([InlineKeyboardButton("📊 Exportar a Excel", callback_data="exportar_excel")])
+        keyboard.append([InlineKeyboardButton("💵 Ver ventas", callback_data="ver_ventas")])
+        keyboard.append([InlineKeyboardButton("📅 Ventas por mes", callback_data="ver_ventas_mes")])
+        keyboard.append([InlineKeyboardButton("🛠️ Ver cambios", callback_data="ver_cambios")])
+        keyboard.append([InlineKeyboardButton("📅 Cambios por mes", callback_data="ver_cambios_mes")])
 
-    keyboard.append([InlineKeyboardButton("Ver articulos en cero", callback_data="ver_stock_cero")])
+    keyboard.append([InlineKeyboardButton("🧹 Ver artículos en cero", callback_data="ver_stock_cero")])
 
     if admin:
-        keyboard.append([InlineKeyboardButton("Limpiar articulos en cero", callback_data="limpiar")])
+        keyboard.append([InlineKeyboardButton("🧹 Limpiar artículos en cero", callback_data="limpiar")])
 
-    keyboard.append([InlineKeyboardButton("Volver al menu", callback_data="inicio")])
+    keyboard.append([InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")])
 
     msg = await update.message.reply_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
     guardar_mensaje(update, context, msg)
@@ -75,48 +75,48 @@ async def callback_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     if not esta_registrado(user_id):
-        await edit_mensaje(query, "No tienes acceso al bot.")
+        await edit_mensaje(query, "❌ No tienes acceso al bot.")
         return
 
     resumen = obtener_resumen()
     admin = es_admin(user_id)
 
     texto = (
-        "REPORTE DE INVENTARIO\n"
-        "========================\n\n"
-        f"Total articulos:    {resumen['total']}\n"
-        f"Total unidades:     {resumen['unidades']}\n"
-        f"Stock en cero:      {resumen['cero']}\n"
-        f"Valor total:        ${resumen['valor']:,.2f}\n\n"
+        "📊 REPORTE DE INVENTARIO\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 Total artículos:    {resumen['total']}\n"
+        f"🔢 Total unidades:     {resumen['unidades']}\n"
+        f"🚫 Stock en cero:      {resumen['cero']}\n"
+        f"💰 Valor total:        ${resumen['valor']:,.2f}\n\n"
     )
 
     if resumen["por_categoria"]:
-        texto += "Por categoria:\n"
+        texto += "📂 Por categoría:\n"
         for cat in resumen["por_categoria"]:
-            texto += f"  * {cat['nombre']}: {cat['total']} articulos * {cat['unidades']} unidades\n"
+            texto += f"  • {cat['nombre']}: {cat['total']} artículos · {cat['unidades']} unidades\n"
 
     if resumen["sin_categoria"]:
-        texto += "\nSin categoria:\n"
+        texto += "\n📌 Sin categoría:\n"
         for s in resumen["sin_categoria"]:
-            texto += f"  * {s['total']} articulos * {s['unidades']} unidades\n"
+            texto += f"  • {s['total']} artículos · {s['unidades']} unidades\n"
 
-    texto += "\n========================"
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     keyboard = []
 
     if admin:
-        keyboard.append([InlineKeyboardButton("Exportar a Excel", callback_data="exportar_excel")])
-        keyboard.append([InlineKeyboardButton("Ver ventas", callback_data="ver_ventas")])
-        keyboard.append([InlineKeyboardButton("Ventas por mes", callback_data="ver_ventas_mes")])
-        keyboard.append([InlineKeyboardButton("Ver cambios", callback_data="ver_cambios")])
-        keyboard.append([InlineKeyboardButton("Cambios por mes", callback_data="ver_cambios_mes")])
+        keyboard.append([InlineKeyboardButton("📊 Exportar a Excel", callback_data="exportar_excel")])
+        keyboard.append([InlineKeyboardButton("💵 Ver ventas", callback_data="ver_ventas")])
+        keyboard.append([InlineKeyboardButton("📅 Ventas por mes", callback_data="ver_ventas_mes")])
+        keyboard.append([InlineKeyboardButton("🛠️ Ver cambios", callback_data="ver_cambios")])
+        keyboard.append([InlineKeyboardButton("📅 Cambios por mes", callback_data="ver_cambios_mes")])
 
-    keyboard.append([InlineKeyboardButton("Ver articulos en cero", callback_data="ver_stock_cero")])
+    keyboard.append([InlineKeyboardButton("🧹 Ver artículos en cero", callback_data="ver_stock_cero")])
 
     if admin:
-        keyboard.append([InlineKeyboardButton("Limpiar articulos en cero", callback_data="limpiar")])
+        keyboard.append([InlineKeyboardButton("🧹 Limpiar artículos en cero", callback_data="limpiar")])
 
-    keyboard.append([InlineKeyboardButton("Volver al menu", callback_data="inicio")])
+    keyboard.append([InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")])
 
     await edit_mensaje(query, texto, reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -168,19 +168,19 @@ async def ver_stock_cero(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not stock_cero:
         await edit_mensaje(
             query,
-            "No hay articulos con stock en cero.",
+            "🧹 No hay artículos con stock en cero.",
             reply_markup=botones_volver(),
         )
         return
 
-    texto = "ARTICULOS SIN STOCK\n========================\n\n"
+    texto = "🚫 ARTÍCULOS SIN STOCK\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
     for r in stock_cero[:15]:
-        texto += f"* {r['codigo']} - {r['nombre']}\n"
+        texto += f"• {r['codigo']} - {r['nombre']}\n"
 
     if len(stock_cero) > 15:
-        texto += f"\n... y {len(stock_cero) - 15} mas\n"
+        texto += f"\n... y {len(stock_cero) - 15} más\n"
 
-    texto += f"\n========================\nTotal: {len(stock_cero)} articulos"
+    texto += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nTotal: {len(stock_cero)} artículos"
 
     await edit_mensaje(query, texto, reply_markup=botones_volver())
 
@@ -191,35 +191,35 @@ async def ver_ventas(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     if not es_admin(user_id):
-        await edit_mensaje(query, "Solo el administrador puede ver las ventas.")
+        await edit_mensaje(query, "❌ Solo el administrador puede ver las ventas.")
         return
 
     resumen = obtener_resumen_ventas()
     ventas = obtener_ventas()
 
     texto = (
-        "REPORTE DE VENTAS\n"
-        "========================\n\n"
-        f"Numero de ventas:   {resumen['ventas']}\n"
-        f"Unidades vendidas:  {resumen['unidades']}\n"
-        f"Total vendido:      ${resumen['total']:,.2f}\n\n"
+        "💵 REPORTE DE VENTAS\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🧾 Número de ventas:   {resumen['ventas']}\n"
+        f"📦 Unidades vendidas:  {resumen['unidades']}\n"
+        f"💰 Total vendido:      ${resumen['total']:,.2f}\n\n"
     )
 
     if ventas:
-        texto += "Ultimas ventas:\n"
+        texto += "📋 Últimas ventas:\n"
         for v in ventas[:10]:
             texto += (
-                f"* {v['fecha'][:16]} | {v['codigo']} - {v['nombre']}\n"
-                f"  {v['cantidad']} und * ${v['precio_unitario']:.2f} * subtotal ${v['subtotal']:.2f} * {v['usuario_nombre']}\n"
+                f"• {v['fecha'][:16]} | {v['codigo']} - {v['nombre']}\n"
+                f"  {v['cantidad']} und × ${v['precio_unitario']:.2f} × subtotal ${v['subtotal']:.2f} × {v['usuario_nombre']}\n"
             )
         if len(ventas) > 10:
-            texto += f"\n... y {len(ventas) - 10} mas\n"
+            texto += f"\n... y {len(ventas) - 10} más\n"
 
-    texto += "\n========================"
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     keyboard = [
-        [InlineKeyboardButton("Exportar ventas a Excel", callback_data="exportar_ventas")],
-        [InlineKeyboardButton("Volver al menu", callback_data="inicio")],
+        [InlineKeyboardButton("📊 Exportar ventas a Excel", callback_data="exportar_ventas")],
+        [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],
     ]
     await edit_mensaje(query, texto, reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -263,35 +263,35 @@ async def ver_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     if not es_admin(user_id):
-        await edit_mensaje(query, "Solo el administrador puede ver los cambios.")
+        await edit_mensaje(query, "❌ Solo el administrador puede ver los cambios.")
         return
 
     cambios = obtener_cambios()
 
     texto = (
-        "REPORTE DE CAMBIOS\n"
-        "========================\n\n"
+        "🛠️ REPORTE DE CAMBIOS\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
     )
 
     if not cambios:
         texto += "No hay cambios registrados."
     else:
         texto += f"Total de cambios: {len(cambios)}\n\n"
-        texto += "Ultimos cambios:\n"
+        texto += "📋 Últimos cambios:\n"
         for c in cambios[:10]:
             texto += (
-                f"* {c['fecha'][:16]} | {c['repuesto_codigo']}\n"
-                f"  {c['campo']}: '{c['valor_anterior']}' -> '{c['valor_nuevo']}'\n"
-                f"  Usuario: {c['usuario_nombre']}\n"
+                f"• {c['fecha'][:16]} | {c['repuesto_codigo']}\n"
+                f"  {c['campo']}: '{c['valor_anterior']}' → '{c['valor_nuevo']}'\n"
+                f"  👤 {c['usuario_nombre']}\n"
             )
         if len(cambios) > 10:
-            texto += f"\n... y {len(cambios) - 10} mas\n"
+            texto += f"\n... y {len(cambios) - 10} más\n"
 
-    texto += "\n========================"
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     keyboard = [
-        [InlineKeyboardButton("Exportar cambios a Excel", callback_data="exportar_cambios")],
-        [InlineKeyboardButton("Volver al menu", callback_data="inicio")],
+        [InlineKeyboardButton("📊 Exportar cambios a Excel", callback_data="exportar_cambios")],
+        [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],
     ]
     await edit_mensaje(query, texto, reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -302,11 +302,11 @@ async def exportar_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     if not es_admin(user_id):
-        await edit_mensaje(query, "Solo el administrador puede exportar cambios.")
+        await edit_mensaje(query, "❌ Solo el administrador puede exportar cambios.")
         return
 
     await borrar_mensajes(context, chat_id=user_id)
-    await edit_mensaje(query, "Generando archivo de cambios...")
+    await edit_mensaje(query, "⏳ Generando archivo de cambios...")
 
     try:
         archivo = generar_excel_cambios()
@@ -314,12 +314,12 @@ async def exportar_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
             doc_msg = await context.bot.send_document(
                 chat_id=user_id,
                 document=f,
-                caption="Reporte de cambios de edicion",
+                caption="🛠️ Reporte de cambios de edición",
             )
         guardar_mensaje(update, context, doc_msg)
-        await edit_mensaje(query, "Archivo de cambios enviado!", reply_markup=botones_volver())
+        await edit_mensaje(query, "✅ Archivo de cambios enviado!", reply_markup=botones_volver())
     except Exception as e:
-        await edit_mensaje(query, f"Error al generar cambios: {str(e)}", reply_markup=botones_volver())
+        await edit_mensaje(query, f"❌ Error al generar cambios: {str(e)}", reply_markup=botones_volver())
     finally:
         try:
             import os
@@ -337,13 +337,13 @@ async def ver_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     if not es_admin(user_id):
-        await edit_mensaje(query, "Solo el administrador puede ver ventas por mes.")
+        await edit_mensaje(query, "❌ Solo el administrador puede ver ventas por mes.")
         return
 
     await edit_mensaje(
         query,
-        "VENTAS POR MES\n========================\n\n"
-        "Escribe el mes y anio (formato: MM/AAAA o AAAA-MM):\n"
+        "📅 VENTAS POR MES\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Escribe el mes y año (formato: MM/AAAA o AAAA-MM):\n"
         "Ejemplos: 09/2026  o  2026-09",
         reply_markup=botones_volver(),
     )
@@ -370,7 +370,7 @@ async def ventas_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYPE
             raise ValueError
     except ValueError:
         await update.message.reply_text(
-            "Formato invalido. Usa MM/AAAA o AAAA-MM (ej: 09/2026 o 2026-09):",
+            "⚠️ Formato inválido. Usa MM/AAAA o AAAA-MM (ej: 09/2026 o 2026-09):",
             reply_markup=botones_volver(),
         )
         return VENTAS_MES
@@ -392,27 +392,27 @@ async def ventas_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYPE
     ][mes]
 
     texto = (
-        f"VENTAS DE {mes_nombre.upper()} {anio}\n"
-        "========================\n\n"
-        f"Numero de ventas:   {resumen['ventas']}\n"
-        f"Unidades vendidas:  {resumen['unidades']}\n"
-        f"Total vendido:      ${resumen['total']:,.2f}\n\n"
+        f"📅 VENTAS DE {mes_nombre.upper()} {anio}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🧾 Número de ventas:   {resumen['ventas']}\n"
+        f"📦 Unidades vendidas:  {resumen['unidades']}\n"
+        f"💰 Total vendido:      ${resumen['total']:,.2f}\n\n"
     )
 
     if ventas:
-        texto += "Ventas:\n"
+        texto += "📋 Ventas:\n"
         for v in ventas:
             texto += (
-                f"* {v['fecha'][:16]} | {v['codigo']} - {v['nombre']}\n"
-                f"  {v['cantidad']} und * ${v['precio_unitario']:.2f} * subtotal ${v['subtotal']:.2f} * {v['usuario_nombre']}\n"
+                f"• {v['fecha'][:16]} | {v['codigo']} - {v['nombre']}\n"
+                f"  {v['cantidad']} und × ${v['precio_unitario']:.2f} × subtotal ${v['subtotal']:.2f} × {v['usuario_nombre']}\n"
             )
 
-    texto += "\n========================"
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     keyboard = [
-        [InlineKeyboardButton("Exportar a Excel", callback_data=f"exportar_ventas_mes_{anio}_{mes:02d}")],
-        [InlineKeyboardButton("Otro mes", callback_data="ver_ventas_mes")],
-        [InlineKeyboardButton("Volver al menu", callback_data="inicio")],
+        [InlineKeyboardButton("📊 Exportar a Excel", callback_data=f"exportar_ventas_mes_{anio}_{mes:02d}")],
+        [InlineKeyboardButton("📅 Otro mes", callback_data="ver_ventas_mes")],
+        [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],
     ]
     await update.message.reply_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -425,13 +425,13 @@ async def ver_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     if not es_admin(user_id):
-        await edit_mensaje(query, "Solo el administrador puede ver cambios por mes.")
+        await edit_mensaje(query, "❌ Solo el administrador puede ver cambios por mes.")
         return
 
     await edit_mensaje(
         query,
-        "CAMBIOS POR MES\n========================\n\n"
-        "Escribe el mes y anio (formato: MM/AAAA o AAAA-MM):\n"
+        "📅 CAMBIOS POR MES\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Escribe el mes y año (formato: MM/AAAA o AAAA-MM):\n"
         "Ejemplos: 09/2026  o  2026-09",
         reply_markup=botones_volver(),
     )
@@ -457,7 +457,7 @@ async def cambios_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYP
             raise ValueError
     except ValueError:
         await update.message.reply_text(
-            "Formato invalido. Usa MM/AAAA o AAAA-MM (ej: 09/2026 o 2026-09):",
+            "⚠️ Formato inválido. Usa MM/AAAA o AAAA-MM (ej: 09/2026 o 2026-09):",
             reply_markup=botones_volver(),
         )
         return CAMBIOS_MES
@@ -477,26 +477,26 @@ async def cambios_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYP
     ][mes]
 
     texto = (
-        f"CAMBIOS DE {mes_nombre.upper()} {anio}\n"
-        "========================\n\n"
-        f"Total de cambios: {len(cambios)}\n\n"
+        f"📅 CAMBIOS DE {mes_nombre.upper()} {anio}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🛠️ Total de cambios: {len(cambios)}\n\n"
     )
 
     if cambios:
-        texto += "Cambios:\n"
+        texto += "📋 Cambios:\n"
         for c in cambios:
             texto += (
-                f"* {c['fecha'][:16]} | {c['repuesto_codigo']}\n"
-                f"  {c['campo']}: '{c['valor_anterior']}' -> '{c['valor_nuevo']}'\n"
-                f"  Usuario: {c['usuario_nombre']}\n"
+                f"• {c['fecha'][:16]} | {c['repuesto_codigo']}\n"
+                f"  {c['campo']}: '{c['valor_anterior']}' → '{c['valor_nuevo']}'\n"
+                f"  👤 {c['usuario_nombre']}\n"
             )
 
-    texto += "\n========================"
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     keyboard = [
-        [InlineKeyboardButton("Exportar a Excel", callback_data=f"exportar_cambios_mes_{anio}_{mes:02d}")],
-        [InlineKeyboardButton("Otro mes", callback_data="ver_cambios_mes")],
-        [InlineKeyboardButton("Volver al menu", callback_data="inicio")],
+        [InlineKeyboardButton("📊 Exportar a Excel", callback_data=f"exportar_cambios_mes_{anio}_{mes:02d}")],
+        [InlineKeyboardButton("📅 Otro mes", callback_data="ver_cambios_mes")],
+        [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],
     ]
     await update.message.reply_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
 
