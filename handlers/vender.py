@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
 from database import (
@@ -7,10 +7,20 @@ from database import (
     esta_registrado,
     registrar_venta,
 )
-from keyboards import menu_confirmar, botones_volver
+from keyboards import botones_volver
 from handlers.utils import finalizar, edit_mensaje
 
-SEARCH, SELECT_ITEM, CANTIDAD, PRECIO, CONFIRMAR = range(5)
+SEARCH, SELECT_ITEM, CANTIDAD, PRECIO, CONFIRMAR_ITEM, CART_SUMMARY = range(6)
+
+
+def menu_cart():
+    """Teclado para el resumen del carrito."""
+    keyboard = [
+        [InlineKeyboardButton("➕ Agregar otro artículo", callback_data="cart_add")],
+        [InlineKeyboardButton("✅ Finalizar venta", callback_data="cart_finalize")],
+        [InlineKeyboardButton("❌ Cancelar todo", callback_data="cart_cancel")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 
 async def start_vender(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -18,6 +28,9 @@ async def start_vender(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not esta_registrado(user_id):
         await update.message.reply_text("❌ No tienes acceso al bot.")
         return ConversationHandler.END
+
+    # Inicializar carrito vacío
+    context.user_data["cart"] = []
 
     await update.message.reply_text(
         "💵 REGISTRAR VENTA\n\n"
@@ -35,6 +48,9 @@ async def callback_vender(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not esta_registrado(user_id):
         await edit_mensaje(query, "❌ No tienes acceso al bot.")
         return ConversationHandler.END
+
+    # Inicializar carrito vacío
+    context.user_data["cart"] = []
 
     await edit_mensaje(
         query,
@@ -62,7 +78,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["venta"] = dict(r)
         return await pedir_cantidad(update, context, r)
 
-    texto = "🔍 Resultados:\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    texto = "🔍 Resultados:\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
     for i, r in enumerate(resultados[:10], 1):
         texto += f"{i}. {r['codigo']} - {r['nombre']} (Stock: {r['cantidad']})\n"
 
@@ -159,8 +175,8 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         valor = "$0.00"
 
     await update.message.reply_text(
-        f"📋 CONFIRMAR VENTA\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📋 CONFIRMAR ARTÍCULO\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"🏷️ Código: {venta['codigo']}\n"
         f"📝 Nombre: {venta['nombre']}\n"
         f"📦 Cantidad: {cantidad_vendida}\n"
@@ -168,51 +184,159 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💵 Precio final: ${precio_final:.2f}\n"
         f"{etiqueta}: {valor}\n"
         f"🧾 Subtotal: ${subtotal:.2f}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"¿Confirmar venta?",
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"¿Agregar este artículo al carrito?",
         reply_markup=menu_confirmar(),
     )
-    return CONFIRMAR
+    return CONFIRMAR_ITEM
 
 
-async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def confirmar_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "cancelar":
-        await edit_mensaje(query, "❌ Venta cancelada.", reply_markup=botones_volver())
-        context.user_data.clear()
-        return ConversationHandler.END
+        await edit_mensaje(query, "❌ Artículo cancelado.", reply_markup=botones_volver())
+        context.user_data.pop("venta", None)
+        return SEARCH
 
     if query.data == "confirmar":
         venta = context.user_data["venta"]
-        usuario = query.from_user
+        # Agregar al carrito (copia para no mutar la original)
+        item = {
+            "codigo": venta["codigo"],
+            "nombre": venta["nombre"],
+            "cantidad": venta["cantidad_vendida"],
+            "precio_registrado": venta["precio"],
+            "precio_final": venta["precio_final"],
+            "subtotal": venta["subtotal"],
+        }
+        context.user_data["cart"].append(item)
+        context.user_data.pop("venta", None)
+        return await mostrar_cart(update, context)
+
+
+async def mostrar_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra el resumen del carrito con opciones."""
+    cart = context.user_data.get("cart", [])
+
+    if not cart:
+        await update.message.reply_text("🛒 Carrito vacío.", reply_markup=botones_volver())
+        return SEARCH
+
+    texto = "🛒 CARRITO DE VENTA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    total = 0
+    for i, item in enumerate(cart, 1):
+        diff = round(item["precio_final"] - item["precio_registrado"], 2)
+        if diff < 0:
+            etiqueta = f"🔻 -${abs(diff):.2f}"
+        elif diff > 0:
+            etiqueta = f"🔺 +${diff:.2f}"
+        else:
+            etiqueta = "➖"
+        texto += (
+            f"{i}. {item['codigo']} - {item['nombre']}\n"
+            f"   {item['cantidad']} und × ${item['precio_final']:.2f} "
+            f"({etiqueta}) = ${item['subtotal']:.2f}\n"
+        )
+        total += item["subtotal"]
+
+    texto += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    texto += f"💰 TOTAL: ${total:.2f}\n"
+    texto += f"📦 Artículos: {len(cart)}\n"
+
+    # Determinar si el mensaje viene de callback (editar) o message (nuevo)
+    if update.callback_query:
+        await edit_mensaje(update.callback_query, texto, reply_markup=menu_cart())
+    else:
+        await update.message.reply_text(texto, reply_markup=menu_cart())
+
+    return CART_SUMMARY
+
+
+async def cart_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+
+    if data == "cart_add":
+        # Volver a buscar otro artículo
+        await edit_mensaje(
+            query,
+            "💵 AGREGAR OTRO ARTÍCULO\n\n"
+            "Escribe el código o nombre del repuesto:",
+            reply_markup=botones_volver(),
+        )
+        return SEARCH
+
+    if data == "cart_cancel":
+        await edit_mensaje(query, "❌ Venta cancelada. Carrito vaciado.", reply_markup=botones_volver())
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    if data == "cart_finalize":
+        return await finalizar_cart(update, context)
+
+    return CART_SUMMARY
+
+
+async def finalizar_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    # No llamar query.answer() aquí porque edit_mensaje lo maneja
+
+    cart = context.user_data.get("cart", [])
+    if not cart:
+        await edit_mensaje(query, "🛒 Carrito vacío.", reply_markup=botones_volver())
+        return ConversationHandler.END
+
+    usuario = query.from_user
+    items_procesados = []
+    errores = []
+
+    # Procesar cada item del carrito
+    for item in cart:
         try:
             resultado = registrar_venta(
-                codigo=venta["codigo"],
-                cantidad=venta["cantidad_vendida"],
-                precio_unitario=venta["precio_final"],
-                precio_registrado=venta["precio"],
+                codigo=item["codigo"],
+                cantidad=item["cantidad"],
+                precio_unitario=item["precio_final"],
+                precio_registrado=item["precio_registrado"],
                 usuario_id=usuario.id,
                 usuario_nombre=usuario.first_name,
             )
-            await edit_mensaje(
-                query,
-                "✅ Venta registrada correctamente!\n\n"
-                f"🏷️ {venta['codigo']} - {venta['nombre']}\n"
-                f"📦 Vendidos: {venta['cantidad_vendida']}\n"
-                f"🧾 Subtotal: ${venta['subtotal']:.2f}\n"
-                f"📦 Stock restante: {resultado['nuevo_stock']}",
-                reply_markup=botones_volver(),
-            )
+            items_procesados.append({
+                "codigo": item["codigo"],
+                "nombre": item["nombre"],
+                "cantidad": item["cantidad"],
+                "subtotal": item["subtotal"],
+                "stock_restante": resultado["nuevo_stock"],
+            })
         except Exception as e:
-            await edit_mensaje(
-                query,
-                f"❌ Error al registrar venta: {str(e)}",
-                reply_markup=botones_volver(),
+            errores.append(f"{item['codigo']}: {str(e)}")
+
+    total = sum(i["subtotal"] for i in items_procesados)
+
+    if items_procesados:
+        texto = "✅ VENTA FINALIZADA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        for i, item in enumerate(items_procesados, 1):
+            texto += (
+                f"{i}. {item['codigo']} - {item['nombre']}\n"
+                f"   {item['cantidad']} und × ${item['subtotal']/item['cantidad']:.2f} "
+                f"= ${item['subtotal']:.2f} (Stock: {item['stock_restante']})\n"
             )
-        context.user_data.clear()
-        return ConversationHandler.END
+        texto += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        texto += f"💰 TOTAL: ${total:.2f}\n"
+        texto += f"📦 Ítems vendidos: {len(items_procesados)}"
+    else:
+        texto = "❌ No se pudo procesar ningún artículo."
+
+    if errores:
+        texto += "\n\n⚠️ ERRORES:\n" + "\n".join(errores)
+
+    await edit_mensaje(query, texto, reply_markup=botones_volver())
+    context.user_data.clear()
+    return ConversationHandler.END
 
 
 async def cancel_vender(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -231,7 +355,8 @@ vender_handler = ConversationHandler(
         SELECT_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, select_item)],
         CANTIDAD: [MessageHandler(filters.TEXT & ~filters.COMMAND, cantidad)],
         PRECIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, precio)],
-        CONFIRMAR: [CallbackQueryHandler(confirmar, pattern="^(confirmar|cancelar)$")],
+        CONFIRMAR_ITEM: [CallbackQueryHandler(confirmar_item, pattern="^(confirmar|cancelar)$")],
+        CART_SUMMARY: [CallbackQueryHandler(cart_callback, pattern="^cart_")],
     },
     fallbacks=[
         CommandHandler("cancel", cancel_vender),
