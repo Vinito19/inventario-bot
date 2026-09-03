@@ -7,7 +7,7 @@ from database import (
     esta_registrado,
     registrar_venta,
 )
-from keyboards import botones_volver
+from keyboards import menu_confirmar, botones_volver
 from handlers.utils import finalizar, edit_mensaje
 
 SEARCH, SELECT_ITEM, CANTIDAD, PRECIO, CONFIRMAR_ITEM, CART_SUMMARY = range(6)
