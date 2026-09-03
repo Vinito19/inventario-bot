@@ -122,7 +122,7 @@ async def cantidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ Cantidad: {cantidad_vendida}\n\n"
         f"💰 Precio registrado: ${venta['precio']:.2f}\n"
-        f"💵 Escribe el PRECIO FINAL por unidad (con descuento si aplica):",
+        f"💵 Escribe el PRECIO FINAL por unidad (con descuento o recargo si aplica):",
         reply_markup=botones_volver(),
     )
     return PRECIO
@@ -147,6 +147,17 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["venta"]["precio_final"] = precio_final
     context.user_data["venta"]["subtotal"] = subtotal
 
+    diferencia = round(precio_final - venta['precio'], 2)
+    if diferencia < 0:
+        etiqueta = "🔻 Descuento unitario"
+        valor = f"${abs(diferencia):.2f}"
+    elif diferencia > 0:
+        etiqueta = "🔺 Recargo unitario"
+        valor = f"${diferencia:.2f}"
+    else:
+        etiqueta = "➖ Sin variación"
+        valor = "$0.00"
+
     await update.message.reply_text(
         f"📋 CONFIRMAR VENTA\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -155,9 +166,9 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📦 Cantidad: {cantidad_vendida}\n"
         f"💰 Precio registrado: ${venta['precio']:.2f}\n"
         f"💵 Precio final: ${precio_final:.2f}\n"
-        f"🔻 Descuento unitario: ${round(venta['precio'] - precio_final, 2):.2f}\n"
+        f"{etiqueta}: {valor}\n"
         f"🧾 Subtotal: ${subtotal:.2f}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"¿Confirmar venta?",
         reply_markup=menu_confirmar(),
     )
