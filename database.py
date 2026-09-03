@@ -487,6 +487,97 @@ def obtener_resumen_ventas():
         conn.close()
 
 
+def obtener_ventas_por_fecha(fecha_inicio=None, fecha_fin=None):
+    """Obtiene ventas filtradas por rango de fechas (inclusive).
+    fechas en formato 'YYYY-MM-DD' o 'YYYY-MM-DD HH:MM:SS'.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        if fecha_inicio and fecha_fin:
+            cursor.execute("""
+                SELECT * FROM ventas 
+                WHERE date(fecha) BETWEEN date(?) AND date(?)
+                ORDER BY fecha DESC, id DESC
+            """, (fecha_inicio, fecha_fin))
+        elif fecha_inicio:
+            cursor.execute("""
+                SELECT * FROM ventas 
+                WHERE date(fecha) >= date(?)
+                ORDER BY fecha DESC, id DESC
+            """, (fecha_inicio,))
+        elif fecha_fin:
+            cursor.execute("""
+                SELECT * FROM ventas 
+                WHERE date(fecha) <= date(?)
+                ORDER BY fecha DESC, id DESC
+            """, (fecha_fin,))
+        else:
+            cursor.execute("SELECT * FROM ventas ORDER BY fecha DESC, id DESC")
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def obtener_resumen_ventas_por_fecha(fecha_inicio=None, fecha_fin=None):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        where = ""
+        params = []
+        if fecha_inicio and fecha_fin:
+            where = "WHERE date(fecha) BETWEEN date(?) AND date(?)"
+            params = [fecha_inicio, fecha_fin]
+        elif fecha_inicio:
+            where = "WHERE date(fecha) >= date(?)"
+            params = [fecha_inicio]
+        elif fecha_fin:
+            where = "WHERE date(fecha) <= date(?)"
+            params = [fecha_fin]
+
+        cursor.execute(f"SELECT COUNT(*) as ventas FROM ventas {where}", params)
+        ventas = cursor.fetchone()["ventas"]
+
+        cursor.execute(f"SELECT COALESCE(SUM(cantidad), 0) as unidades FROM ventas {where}", params)
+        unidades = cursor.fetchone()["unidades"]
+
+        cursor.execute(f"SELECT COALESCE(SUM(subtotal), 0) as total FROM ventas {where}", params)
+        total = cursor.fetchone()["total"]
+
+        return {"ventas": ventas, "unidades": unidades, "total": total}
+    finally:
+        conn.close()
+
+
+def obtener_cambios_por_fecha(fecha_inicio=None, fecha_fin=None):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        if fecha_inicio and fecha_fin:
+            cursor.execute("""
+                SELECT * FROM cambios 
+                WHERE date(fecha) BETWEEN date(?) AND date(?)
+                ORDER BY fecha DESC, id DESC
+            """, (fecha_inicio, fecha_fin))
+        elif fecha_inicio:
+            cursor.execute("""
+                SELECT * FROM cambios 
+                WHERE date(fecha) >= date(?)
+                ORDER BY fecha DESC, id DESC
+            """, (fecha_inicio,))
+        elif fecha_fin:
+            cursor.execute("""
+                SELECT * FROM cambios 
+                WHERE date(fecha) <= date(?)
+                ORDER BY fecha DESC, id DESC
+            """, (fecha_fin,))
+        else:
+            cursor.execute("SELECT * FROM cambios ORDER BY fecha DESC, id DESC")
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+
 # ---------- HISTORIAL DE CAMBIOS ----------
 
 def registrar_cambio(codigo, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre):
