@@ -126,7 +126,7 @@ def generar_excel_ventas():
     ws = wb.active
     ws.title = "Ventas"
 
-    headers = ["Fecha", "Código", "Nombre", "Cantidad", "Precio unitario", "Precio registrado", "Subtotal", "Usuario"]
+    headers = ["Fecha", "Código", "Nombre", "Cantidad", "Precio registrado", "Precio unitario", "Descuento/Recargo", "Total", "Usuario"]
     _estilos_excel(wb, ws, headers)
 
     from openpyxl.styles import Alignment
@@ -136,17 +136,20 @@ def generar_excel_ventas():
         ws.cell(row=row_num, column=2, value=v["codigo"])
         ws.cell(row=row_num, column=3, value=v["nombre"])
         ws.cell(row=row_num, column=4, value=v["cantidad"])
-        ws.cell(row=row_num, column=5, value=v["precio_unitario"])
-        ws.cell(row=row_num, column=6, value=v["precio_registrado"])
-        ws.cell(row=row_num, column=7, value=v["subtotal"])
-        ws.cell(row=row_num, column=8, value=v["usuario_nombre"])
+        ws.cell(row=row_num, column=5, value=v["precio_registrado"])
+        ws.cell(row=row_num, column=6, value=v["precio_unitario"])
+        # Descuento/Recargo = precio_unitario - precio_registrado
+        desc_rec = round(v["precio_unitario"] - v["precio_registrado"], 2)
+        ws.cell(row=row_num, column=7, value=desc_rec)
+        ws.cell(row=row_num, column=8, value=v["subtotal"])
+        ws.cell(row=row_num, column=9, value=v["usuario_nombre"])
 
         ws.cell(row=row_num, column=4).alignment = Alignment(horizontal="center")
-        for col in (5, 6, 7):
+        for col in (5, 6, 7, 8):
             ws.cell(row=row_num, column=col).number_format = '#,##0.00'
             ws.cell(row=row_num, column=col).alignment = Alignment(horizontal="right")
 
-    widths = {"A": 20, "B": 15, "C": 30, "D": 12, "E": 15, "F": 17, "G": 15, "H": 20}
+    widths = {"A": 20, "B": 15, "C": 30, "D": 12, "E": 17, "F": 17, "G": 18, "H": 15, "I": 20}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
