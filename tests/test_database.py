@@ -29,6 +29,11 @@ from database import (
     obtener_resumen,
     get_config,
     set_config,
+    registrar_venta,
+    obtener_ventas,
+    obtener_resumen_ventas,
+    registrar_cambio,
+    obtener_cambios,
     DB_NAME,
 )
 
@@ -240,3 +245,53 @@ def test_set_get_config():
 
 def test_get_config_inexistente():
     assert get_config("no_existe") is None
+
+
+# ---------- VENTAS ----------
+
+def test_registrar_venta_descuenta_stock(setup_categoria):
+    agregar_repuesto("V-001", "Pastilla", "d", 10, 5.0, _fotos(), setup_categoria, "A")
+    res = registrar_venta("V-001", 2, 4.0, 5.0, 999, "Admin")
+    r = obtener_repuesto("V-001")
+    assert res["nuevo_stock"] == 8
+    assert r["cantidad"] == 8
+    assert res["subtotal"] == 8.0  # 2 * 4.0
+
+
+def test_registrar_venta_stock_insuficiente(setup_categoria):
+    agregar_repuesto("V-002", "Disco", "d", 3, 5.0, _fotos(), setup_categoria, "A")
+    with pytest.raises(ValueError):
+        registrar_venta("V-002", 5, 5.0, 5.0, 999, "Admin")
+    # Stock intacto tras fallo
+    assert obtener_repuesto("V-002")["cantidad"] == 3
+
+
+def test_registrar_venta_cantidad_cero(setup_categoria):
+    agregar_repuesto("V-003", "Filtro", "d", 5, 5.0, _fotos(), setup_categoria, "A")
+    with pytest.raises(ValueError):
+        registrar_venta("V-003", 0, 5.0, 5.0, 999, "Admin")
+
+
+def test_obtener_ventas_y_resumen(setup_categoria):
+    agregar_repuesto("V-004", "Bujia", "d", 20, 10.0, _fotos(), setup_categoria, "A")
+    registrar_venta("V-004", 3, 9.0, 10.0, 111, "Juan")
+    registrar_venta("V-004", 2, 10.0, 10.0, 111, "Juan")
+    ventas = obtener_ventas()
+    assert len(ventas) == 2
+    res = obtener_resumen_ventas()
+    assert res["ventas"] == 2
+    assert res["unidades"] == 5
+    assert abs(res["total"] - (3 * 9.0 + 2 * 10.0)) < 0.01
+
+
+# ---------- HISTORIAL DE CAMBIOS ----------
+
+def test_registrar_y_obtener_cambios(setup_categoria):
+    agregar_repuesto("C-001", "Pastilla", "d", 10, 5.0, _fotos(), setup_categoria, "A")
+    registrar_cambio("C-001", "precio", 5.0, 6.5, 999, "Admin")
+    registrar_cambio("C-001", "cantidad", 10, 8, 111, "Juan")
+    cambios = obtener_cambios()
+    assert len(cambios) == 2
+    assert cambios[0]["campo"] == "cantidad"
+    assert cambios[0]["valor_anterior"] == "10"
+    assert cambios[0]["usuario_nombre"] == "Juan"

@@ -15,9 +15,10 @@ from handlers.buscar import buscar_handler
 from handlers.editar import editar_handler
 from handlers.eliminar import eliminar_handler
 from handlers.limpiar import limpiar_handler
-from handlers.reporte import reporte_handler, reporte_callback_handler, exportar_excel_handler, ver_stock_cero_handler
+from handlers.reporte import reporte_handler, reporte_callback_handler, exportar_excel_handler, ver_stock_cero_handler, ver_ventas_handler, exportar_ventas_handler, ver_cambios_handler, exportar_cambios_handler
 from handlers.categorias import categorias_handler
 from handlers.usuarios import usuarios_handler
+from handlers.vender import vender_handler
 from handlers.proforma import proforma_callback_handler, setlogo_handler
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -64,11 +65,16 @@ def main():
     app.add_handler(editar_handler)
     app.add_handler(eliminar_handler)
     app.add_handler(limpiar_handler)
+    app.add_handler(vender_handler)
 
     app.add_handler(reporte_handler)
     app.add_handler(reporte_callback_handler)
     app.add_handler(exportar_excel_handler)
     app.add_handler(ver_stock_cero_handler)
+    app.add_handler(ver_ventas_handler)
+    app.add_handler(exportar_ventas_handler)
+    app.add_handler(ver_cambios_handler)
+    app.add_handler(exportar_cambios_handler)
 
     app.add_handler(categorias_handler)
     app.add_handler(usuarios_handler)

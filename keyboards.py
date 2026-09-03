@@ -6,6 +6,7 @@ def menu_admin():
         [InlineKeyboardButton("➕ Agregar repuesto", callback_data="agregar")],
         [InlineKeyboardButton("🔍 Buscar repuesto", callback_data="buscar")],
         [InlineKeyboardButton("✏️ Editar stock/repuesto", callback_data="editar")],
+        [InlineKeyboardButton("💵 Registrar venta", callback_data="vender")],
         [InlineKeyboardButton("📊 Reporte + Exportar Excel", callback_data="reporte")],
         [InlineKeyboardButton("🧹 Limpiar stock en cero", callback_data="limpiar")],
         [InlineKeyboardButton("🗑️ Eliminar repuesto", callback_data="eliminar")],
@@ -20,6 +21,7 @@ def menu_usuario():
         [InlineKeyboardButton("➕ Agregar repuesto", callback_data="agregar")],
         [InlineKeyboardButton("🔍 Buscar repuesto", callback_data="buscar")],
         [InlineKeyboardButton("✏️ Editar stock/repuesto", callback_data="editar")],
+        [InlineKeyboardButton("💵 Registrar venta", callback_data="vender")],
         [InlineKeyboardButton("📊 Ver reporte", callback_data="reporte")],
     ]
     return InlineKeyboardMarkup(keyboard)

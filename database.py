@@ -49,6 +49,30 @@ def init_db():
                 clave TEXT PRIMARY KEY,
                 valor TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS ventas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                codigo TEXT NOT NULL,
+                nombre TEXT NOT NULL,
+                cantidad INTEGER NOT NULL,
+                precio_unitario REAL NOT NULL,
+                precio_registrado REAL NOT NULL,
+                subtotal REAL NOT NULL,
+                usuario_id INTEGER,
+                usuario_nombre TEXT,
+                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS cambios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                repuesto_codigo TEXT NOT NULL,
+                campo TEXT NOT NULL,
+                valor_anterior TEXT,
+                valor_nuevo TEXT,
+                usuario_id INTEGER,
+                usuario_nombre TEXT,
+                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         conn.commit()
     finally:
@@ -388,5 +412,92 @@ def set_config(clave, valor):
             (clave, valor),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+# ---------- VENTAS ----------
+
+def registrar_venta(codigo, cantidad, precio_unitario, precio_registrado, usuario_id, usuario_nombre):
+    """Descuenta stock y registra la venta de forma atómica."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT codigo, nombre, precio, cantidad FROM repuestos WHERE codigo = ?", (codigo,))
+        r = cursor.fetchone()
+        if not r:
+            raise ValueError("Repuesto no encontrado")
+        if cantidad <= 0:
+            raise ValueError("La cantidad debe ser mayor que cero")
+        if r["cantidad"] < cantidad:
+            raise ValueError(f"Stock insuficiente: disponible {r['cantidad']}, se intentaron vender {cantidad}")
+
+        nuevo_stock = r["cantidad"] - cantidad
+        subtotal = round(cantidad * precio_unitario, 2)
+
+        cursor.execute("UPDATE repuestos SET cantidad = ? WHERE codigo = ?", (nuevo_stock, codigo))
+        cursor.execute("""
+            INSERT INTO ventas (codigo, nombre, cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (codigo, r["nombre"], cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre))
+        conn.commit()
+        return {"nuevo_stock": nuevo_stock, "subtotal": subtotal, "nombre": r["nombre"]}
+    except sqlite3.Error:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def obtener_ventas():
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM ventas ORDER BY fecha DESC, id DESC")
+        return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def obtener_resumen_ventas():
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) as ventas FROM ventas")
+        ventas = cursor.fetchone()["ventas"]
+
+        cursor.execute("SELECT COALESCE(SUM(cantidad), 0) as unidades FROM ventas")
+        unidades = cursor.fetchone()["unidades"]
+
+        cursor.execute("SELECT COALESCE(SUM(subtotal), 0) as total FROM ventas")
+        total = cursor.fetchone()["total"]
+
+        return {"ventas": ventas, "unidades": unidades, "total": total}
+    finally:
+        conn.close()
+
+
+# ---------- HISTORIAL DE CAMBIOS ----------
+
+def registrar_cambio(codigo, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO cambios (repuesto_codigo, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (codigo, campo, str(valor_anterior), str(valor_nuevo), usuario_id, usuario_nombre))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def obtener_cambios():
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM cambios ORDER BY fecha DESC, id DESC")
+        return cursor.fetchall()
     finally:
         conn.close()

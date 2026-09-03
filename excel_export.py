@@ -90,3 +90,99 @@ def generar_excel():
     wb.save(ruta)
 
     return ruta
+
+
+def _estilos_excel(wb, ws, headers):
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+
+    ws.auto_filter.ref = ws.dimensions
+    ws.freeze_panes = "A2"
+
+
+def generar_excel_ventas():
+    from database import obtener_ventas
+
+    ventas = obtener_ventas()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ventas"
+
+    headers = ["Fecha", "Código", "Nombre", "Cantidad", "Precio unitario", "Precio registrado", "Subtotal", "Usuario"]
+    _estilos_excel(wb, ws, headers)
+
+    from openpyxl.styles import Alignment
+
+    for row_num, v in enumerate(ventas, 2):
+        ws.cell(row=row_num, column=1, value=v["fecha"])
+        ws.cell(row=row_num, column=2, value=v["codigo"])
+        ws.cell(row=row_num, column=3, value=v["nombre"])
+        ws.cell(row=row_num, column=4, value=v["cantidad"])
+        ws.cell(row=row_num, column=5, value=v["precio_unitario"])
+        ws.cell(row=row_num, column=6, value=v["precio_registrado"])
+        ws.cell(row=row_num, column=7, value=v["subtotal"])
+        ws.cell(row=row_num, column=8, value=v["usuario_nombre"])
+
+        ws.cell(row=row_num, column=4).alignment = Alignment(horizontal="center")
+        for col in (5, 6, 7):
+            ws.cell(row=row_num, column=col).number_format = '#,##0.00'
+            ws.cell(row=row_num, column=col).alignment = Alignment(horizontal="right")
+
+    widths = {"A": 20, "B": 15, "C": 30, "D": 12, "E": 15, "F": 17, "G": 15, "H": 20}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+
+    fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    archivo = f"ventas_{fecha_str}.xlsx"
+    ruta = os.path.join(os.getcwd(), archivo)
+    wb.save(ruta)
+    return ruta
+
+
+def generar_excel_cambios():
+    from database import obtener_cambios
+
+    cambios = obtener_cambios()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cambios"
+
+    headers = ["Fecha", "Código repuesto", "Campo", "Valor anterior", "Valor nuevo", "Usuario"]
+    _estilos_excel(wb, ws, headers)
+
+    for row_num, c in enumerate(cambios, 2):
+        ws.cell(row=row_num, column=1, value=c["fecha"])
+        ws.cell(row=row_num, column=2, value=c["repuesto_codigo"])
+        ws.cell(row=row_num, column=3, value=c["campo"])
+        ws.cell(row=row_num, column=4, value=c["valor_anterior"])
+        ws.cell(row=row_num, column=5, value=c["valor_nuevo"])
+        ws.cell(row=row_num, column=6, value=c["usuario_nombre"])
+
+    widths = {"A": 20, "B": 18, "C": 18, "D": 25, "E": 25, "F": 20}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+
+    fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    archivo = f"cambios_{fecha_str}.xlsx"
+    ruta = os.path.join(os.getcwd(), archivo)
+    wb.save(ruta)
+    return ruta

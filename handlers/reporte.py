@@ -1,10 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 
-from database import obtener_resumen, esta_registrado, es_admin
+from database import obtener_resumen, esta_registrado, es_admin, obtener_resumen_ventas, obtener_ventas, obtener_cambios
 from handlers.utils import edit_mensaje, guardar_mensaje, borrar_mensajes
 from keyboards import botones_volver
-from excel_export import generar_excel
+from excel_export import generar_excel, generar_excel_ventas, generar_excel_cambios
 
 
 async def start_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -41,6 +41,8 @@ async def start_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if admin:
         keyboard.append([InlineKeyboardButton("📊 Exportar a Excel", callback_data="exportar_excel")])
+        keyboard.append([InlineKeyboardButton("💵 Ver ventas", callback_data="ver_ventas")])
+        keyboard.append([InlineKeyboardButton("🛠️ Ver cambios", callback_data="ver_cambios")])
 
     keyboard.append([InlineKeyboardButton("🧹 Ver artículos en cero", callback_data="ver_stock_cero")])
 
@@ -90,6 +92,8 @@ async def callback_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if admin:
         keyboard.append([InlineKeyboardButton("📊 Exportar a Excel", callback_data="exportar_excel")])
+        keyboard.append([InlineKeyboardButton("💵 Ver ventas", callback_data="ver_ventas")])
+        keyboard.append([InlineKeyboardButton("🛠️ Ver cambios", callback_data="ver_cambios")])
 
     keyboard.append([InlineKeyboardButton("🧹 Ver artículos en cero", callback_data="ver_stock_cero")])
 
@@ -169,7 +173,155 @@ async def ver_stock_cero(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await edit_mensaje(query, texto, reply_markup=botones_volver())
 
 
+async def ver_ventas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    if not es_admin(user_id):
+        await edit_mensaje(query, "❌ Solo el administrador puede ver las ventas.")
+        return
+
+    resumen = obtener_resumen_ventas()
+    ventas = obtener_ventas()
+
+    texto = (
+        "💵 REPORTE DE VENTAS\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🧾 Número de ventas:   {resumen['ventas']}\n"
+        f"📦 Unidades vendidas:  {resumen['unidades']}\n"
+        f"💰 Total vendido:      ${resumen['total']:,.2f}\n\n"
+    )
+
+    if ventas:
+        texto += "📋 Últimas ventas:\n"
+        for v in ventas[:10]:
+            texto += (
+                f"• {v['fecha'][:16]} | {v['codigo']} - {v['nombre']}\n"
+                f"  {v['cantidad']} und · ${v['precio_unitario']:.2f} · subtotal ${v['subtotal']:.2f} · {v['usuario_nombre']}\n"
+            )
+        if len(ventas) > 10:
+            texto += f"\n... y {len(ventas) - 10} más\n"
+
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    keyboard = [
+        [InlineKeyboardButton("📊 Exportar ventas a Excel", callback_data="exportar_ventas")],
+        [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],
+    ]
+    await edit_mensaje(query, texto, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def exportar_ventas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    if not es_admin(user_id):
+        await edit_mensaje(query, "❌ Solo el administrador puede exportar ventas.")
+        return
+
+    await borrar_mensajes(context, chat_id=user_id)
+    await edit_mensaje(query, "⏳ Generando archivo de ventas...")
+
+    try:
+        archivo = generar_excel_ventas()
+        with open(archivo, "rb") as f:
+            doc_msg = await context.bot.send_document(
+                chat_id=user_id,
+                document=f,
+                caption="💵 Reporte de ventas",
+            )
+        guardar_mensaje(update, context, doc_msg)
+        await edit_mensaje(query, "✅ Archivo de ventas enviado!", reply_markup=botones_volver())
+    except Exception as e:
+        await edit_mensaje(query, f"❌ Error al generar ventas: {str(e)}", reply_markup=botones_volver())
+    finally:
+        try:
+            import os
+            if os.path.exists(archivo):
+                os.remove(archivo)
+        except Exception:
+            pass
+
+
+async def ver_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    if not es_admin(user_id):
+        await edit_mensaje(query, "❌ Solo el administrador puede ver los cambios.")
+        return
+
+    cambios = obtener_cambios()
+
+    texto = (
+        "🛠️ REPORTE DE CAMBIOS\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
+
+    if not cambios:
+        texto += "No hay cambios registrados."
+    else:
+        texto += f"Total de cambios: {len(cambios)}\n\n"
+        texto += "📋 Últimos cambios:\n"
+        for c in cambios[:10]:
+            texto += (
+                f"• {c['fecha'][:16]} | {c['repuesto_codigo']}\n"
+                f"  {c['campo']}: '{c['valor_anterior']}' → '{c['valor_nuevo']}'\n"
+                f"  👤 {c['usuario_nombre']}\n"
+            )
+        if len(cambios) > 10:
+            texto += f"\n... y {len(cambios) - 10} más\n"
+
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    keyboard = [
+        [InlineKeyboardButton("📊 Exportar cambios a Excel", callback_data="exportar_cambios")],
+        [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],
+    ]
+    await edit_mensaje(query, texto, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def exportar_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    if not es_admin(user_id):
+        await edit_mensaje(query, "❌ Solo el administrador puede exportar cambios.")
+        return
+
+    await borrar_mensajes(context, chat_id=user_id)
+    await edit_mensaje(query, "⏳ Generando archivo de cambios...")
+
+    try:
+        archivo = generar_excel_cambios()
+        with open(archivo, "rb") as f:
+            doc_msg = await context.bot.send_document(
+                chat_id=user_id,
+                document=f,
+                caption="🛠️ Reporte de cambios de edición",
+            )
+        guardar_mensaje(update, context, doc_msg)
+        await edit_mensaje(query, "✅ Archivo de cambios enviado!", reply_markup=botones_volver())
+    except Exception as e:
+        await edit_mensaje(query, f"❌ Error al generar cambios: {str(e)}", reply_markup=botones_volver())
+    finally:
+        try:
+            import os
+            if os.path.exists(archivo):
+                os.remove(archivo)
+        except Exception:
+            pass
+
+
 reporte_handler = CommandHandler("reporte", start_reporte)
 reporte_callback_handler = CallbackQueryHandler(callback_reporte, pattern="^reporte$")
 exportar_excel_handler = CallbackQueryHandler(exportar_excel, pattern="^exportar_excel$")
 ver_stock_cero_handler = CallbackQueryHandler(ver_stock_cero, pattern="^ver_stock_cero$")
+ver_ventas_handler = CallbackQueryHandler(ver_ventas, pattern="^ver_ventas$")
+exportar_ventas_handler = CallbackQueryHandler(exportar_ventas, pattern="^exportar_ventas$")
+ver_cambios_handler = CallbackQueryHandler(ver_cambios, pattern="^ver_cambios$")
+exportar_cambios_handler = CallbackQueryHandler(exportar_cambios, pattern="^exportar_cambios$")

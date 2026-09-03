@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
-from database import buscar_repuestos, obtener_repuesto, editar_repuesto, editar_repuesto_fotos, esta_registrado, agregar_categoria, obtener_categoria_por_nombre, obtener_categorias
+from database import buscar_repuestos, obtener_repuesto, editar_repuesto, editar_repuesto_fotos, esta_registrado, agregar_categoria, obtener_categoria_por_nombre, obtener_categorias, registrar_cambio
 from keyboards import menu_editar, menu_cantidad, menu_confirmar, botones_volver, menu_categorias
 from handlers.utils import finalizar, edit_mensaje
 
@@ -349,14 +349,35 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         repuesto = context.user_data["repuesto"]
         campo = context.user_data["campo"]
         nuevo_valor = context.user_data["nuevo_valor"]
+        usuario = query.from_user
 
         try:
+            # Calcular valor anterior y nuevo para el historial
+            if campo == "fotos":
+                valor_anterior = "4 fotos"
+                valor_nuevo = "4 fotos (actualizadas)"
+            elif campo == "categoria_id":
+                valor_anterior = repuesto["categoria_nombre"] or "Sin categoria"
+                cat_obj = next((c for c in obtener_categorias() if c["id"] == nuevo_valor), None)
+                valor_nuevo = cat_obj["nombre"] if cat_obj else "Sin categoria"
+            else:
+                valor_anterior = repuesto[campo]
+                valor_nuevo = nuevo_valor
+
             if campo == "fotos":
                 editar_repuesto_fotos(repuesto["codigo"], nuevo_valor)
             else:
                 editar_repuesto(repuesto["codigo"], campo, nuevo_valor)
 
-            valor_mostrar = (repuesto["categoria_nombre"] or "Sin categoria") if campo == "categoria_id" else ("4 fotos" if campo == "fotos" else repuesto[campo])
+            registrar_cambio(
+                codigo=repuesto["codigo"],
+                campo=campo,
+                valor_anterior=valor_anterior,
+                valor_nuevo=valor_nuevo,
+                usuario_id=usuario.id,
+                usuario_nombre=usuario.first_name,
+            )
+
             await edit_mensaje(
                 query,
                 f"✅ Campo '{campo}' actualizado correctamente!\n\n"

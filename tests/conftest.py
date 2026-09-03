@@ -64,7 +64,7 @@ def _clean_db():
     import sqlite3
     conn = sqlite3.connect(database.DB_NAME)
     try:
-        for tabla in ("repuestos", "categorias", "usuarios", "configuracion"):
+        for tabla in ("repuestos", "categorias", "usuarios", "configuracion", "ventas", "cambios"):
             conn.execute(f"DELETE FROM {tabla}")
         conn.commit()
     finally:

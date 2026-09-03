@@ -34,7 +34,7 @@ def _extract_data(menu):
 def test_menu_admin():
     m = menu_admin()
     datas = _extract_data(m)
-    esperados = ["agregar", "buscar", "editar", "reporte", "limpiar",
+    esperados = ["agregar", "buscar", "editar", "vender", "reporte", "limpiar",
                  "eliminar", "categorias", "usuarios"]
     for e in esperados:
         assert e in datas, f"Falta boton {e} en menu_admin"
@@ -46,6 +46,7 @@ def test_menu_usuario():
     assert "agregar" in datas
     assert "buscar" in datas
     assert "editar" in datas
+    assert "vender" in datas
     assert "reporte" in datas
     # Un usuario NO debe ver opciones de admin
     assert "usuarios" not in datas

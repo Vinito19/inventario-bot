@@ -94,3 +94,45 @@ def test_nombre_backup_extension():
     nombre = nombre_backup()
     assert nombre.endswith(".db")
     assert "backup_inventario" in nombre
+
+
+def test_generar_excel_ventas():
+    from database import registrar_venta
+    from excel_export import generar_excel_ventas
+
+    cat_id = agregar_categoria("Frenos")
+    fotos = [f"f{i}" for i in range(1, 5)]
+    agregar_repuesto("VX-001", "Pastilla", "d", 10, 5.0, fotos, cat_id, "A")
+    registrar_venta("VX-001", 2, 4.5, 5.0, 999, "Admin")
+
+    ruta = generar_excel_ventas()
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(ruta)
+        ws = wb.active
+        assert ws.title == "Ventas"
+        assert ws.cell(row=1, column=1).value == "Fecha"
+        # 1 venta + cabecera
+        assert ws.max_row >= 2
+    finally:
+        if os.path.exists(ruta):
+            os.remove(ruta)
+
+
+def test_generar_excel_cambios():
+    from database import registrar_cambio
+    from excel_export import generar_excel_cambios
+
+    registrar_cambio("VX-001", "precio", 5.0, 6.0, 999, "Admin")
+
+    ruta = generar_excel_cambios()
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(ruta)
+        ws = wb.active
+        assert ws.title == "Cambios"
+        assert ws.cell(row=1, column=1).value == "Fecha"
+        assert ws.cell(row=2, column=2).value == "VX-001"
+    finally:
+        if os.path.exists(ruta):
+            os.remove(ruta)
