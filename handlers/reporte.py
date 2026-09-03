@@ -12,7 +12,7 @@ from database import (
     obtener_resumen_ventas_por_fecha,
     obtener_cambios_por_fecha,
 )
-from handlers.utils import edit_mensaje, guardar_mensaje, borrar_mensajes
+from handlers.utils import edit_mensaje, guardar_mensaje, borrar_mensajes, finalizar
 from keyboards import botones_volver
 from excel_export import generar_excel, generar_excel_ventas, generar_excel_cambios
 
