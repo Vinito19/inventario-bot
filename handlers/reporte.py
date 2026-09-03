@@ -514,9 +514,9 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # callback_data: exportar_ventas_mes_YYYY_MM
     try:
-        _, _, anio, mes = query.data.split("_")
-        anio = int(anio)
-        mes = int(mes)
+        partes = query.data.split("_")
+        anio = int(partes[-2])
+        mes = int(partes[-1])
     except Exception:
         await edit_mensaje(query, "Error en los parametros.")
         return
@@ -595,9 +595,9 @@ async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     try:
-        _, _, anio, mes = query.data.split("_")
-        anio = int(anio)
-        mes = int(mes)
+        partes = query.data.split("_")
+        anio = int(partes[-2])
+        mes = int(partes[-1])
     except Exception:
         await edit_mensaje(query, "Error en los parametros.")
         return
