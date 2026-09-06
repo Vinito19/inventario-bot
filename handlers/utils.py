@@ -55,12 +55,12 @@ async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "inicio":
         if usuario and usuario["rol"] == "admin" and usuario["activo"] == 1:
-            await context.bot.send_message(chat_id=chat_id, text="Panel de administrador:", reply_markup=menu_admin())
+            await context.bot.send_message(chat_id=chat_id, text="👑 Panel de administrador:", reply_markup=menu_admin())
         elif usuario and usuario["activo"] == 1:
-            await context.bot.send_message(chat_id=chat_id, text=f"Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
+            await context.bot.send_message(chat_id=chat_id, text=f"👋 Bienvenido, {usuario['nombre']}!", reply_markup=menu_usuario())
         else:
-            await context.bot.send_message(chat_id=chat_id, text="No tienes acceso al bot.")
+            await context.bot.send_message(chat_id=chat_id, text="❌ No tienes acceso al bot.")
     else:
-        await context.bot.send_message(chat_id=chat_id, text="Operacion cancelada.")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Operación cancelada.")
 
     return ConversationHandler.END

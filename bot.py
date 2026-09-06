@@ -92,7 +92,6 @@ def main():
     app.add_handler(ver_cambios_mes_conv)
     app.add_handler(exportar_ventas_mes_handler)
     app.add_handler(exportar_cambios_mes_handler)
-    app.add_handler(exportar_cambios_handler)
 
     app.add_handler(categorias_handler)
     app.add_handler(usuarios_handler)

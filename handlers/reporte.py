@@ -376,7 +376,6 @@ async def ventas_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYPE
         return VENTAS_MES
 
     # Calcular rango de fechas
-    from datetime import datetime, timedelta
     fecha_inicio = f"{anio:04d}-{mes:02d}-01"
     if mes == 12:
         fecha_fin = f"{anio+1:04d}-01-01"
@@ -462,7 +461,6 @@ async def cambios_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return CAMBIOS_MES
 
-    from datetime import datetime
     if mes == 12:
         fecha_fin = f"{anio+1:04d}-01-01"
     else:
