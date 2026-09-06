@@ -539,7 +539,7 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
         ws = wb.active
         ws.title = f"Ventas_{anio}_{mes:02d}"
 
-        headers = ["Fecha", "Codigo", "Nombre", "Cantidad", "Precio reg.", "Precio unit.", "Desc/Rec", "Total", "Usuario"]
+        headers = ["Fecha", "Codigo", "Nombre", "Cantidad", "Precio reg.", "Precio unit.", "Desc/Rec", "Total", "Usuario", "Vendedor"]
         from excel_export import _estilos_excel
         _estilos_excel(wb, ws, headers)
 
@@ -554,12 +554,13 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
             ws.cell(row=row_num, column=7, value=round(v["precio_unitario"] - v["precio_registrado"], 2))
             ws.cell(row=row_num, column=8, value=v["subtotal"])
             ws.cell(row=row_num, column=9, value=v["usuario_nombre"])
+            ws.cell(row=row_num, column=10, value=v["vendedor"] or "")
             ws.cell(row=row_num, column=4).alignment = Alignment(horizontal="center")
             for col in (5, 6, 7, 8):
                 ws.cell(row=row_num, column=col).number_format = '#,##0.00'
                 ws.cell(row=row_num, column=col).alignment = Alignment(horizontal="right")
 
-        widths = {"A": 20, "B": 15, "C": 30, "D": 12, "E": 17, "F": 17, "G": 18, "H": 15, "I": 20}
+        widths = {"A": 20, "B": 15, "C": 30, "D": 12, "E": 17, "F": 17, "G": 18, "H": 15, "I": 20, "J": 20}
         for col, w in widths.items():
             ws.column_dimensions[col].width = w
 

@@ -69,6 +69,7 @@ def init_db():
                 subtotal REAL NOT NULL,
                 usuario_id INTEGER,
                 usuario_nombre TEXT,
+                vendedor TEXT,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -427,7 +428,7 @@ def set_config(clave, valor):
 
 # ---------- VENTAS ----------
 
-def registrar_venta(codigo, cantidad, precio_unitario, precio_registrado, usuario_id, usuario_nombre):
+def registrar_venta(codigo, cantidad, precio_unitario, precio_registrado, usuario_id, usuario_nombre, vendedor=None):
     """Descuenta stock y registra la venta de forma atómica."""
     conn = get_connection()
     try:
@@ -446,9 +447,9 @@ def registrar_venta(codigo, cantidad, precio_unitario, precio_registrado, usuari
 
         cursor.execute("UPDATE repuestos SET cantidad = ? WHERE codigo = ?", (nuevo_stock, codigo))
         cursor.execute("""
-            INSERT INTO ventas (codigo, nombre, cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre, fecha)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (codigo, r["nombre"], cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre, _ahora()))
+            INSERT INTO ventas (codigo, nombre, cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre, vendedor, fecha)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (codigo, r["nombre"], cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre, vendedor, _ahora()))
         conn.commit()
         return {"nuevo_stock": nuevo_stock, "subtotal": subtotal, "nombre": r["nombre"]}
     except sqlite3.Error:

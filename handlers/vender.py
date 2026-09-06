@@ -10,7 +10,7 @@ from database import (
 from keyboards import menu_confirmar, botones_volver
 from handlers.utils import finalizar, edit_mensaje
 
-SEARCH, SELECT_ITEM, CANTIDAD, PRECIO, CONFIRMAR_ITEM, CART_SUMMARY = range(6)
+SEARCH, SELECT_ITEM, CANTIDAD, PRECIO, CONFIRMAR_ITEM, CART_SUMMARY, VENDEDOR = range(7)
 
 
 def menu_cart():
@@ -276,21 +276,45 @@ async def cart_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     if data == "cart_finalize":
-        return await finalizar_cart(update, context)
+        # Pedir nombre del vendedor antes de finalizar
+        await edit_mensaje(
+            query,
+            "👤 VENDEDOR\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Escribe el nombre del vendedor para esta venta:",
+            reply_markup=botones_volver(),
+        )
+        return VENDEDOR
 
     return CART_SUMMARY
 
 
-async def finalizar_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    # No llamar query.answer() aquí porque edit_mensaje lo maneja
+async def vendedor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recibe el nombre del vendedor y finaliza la venta."""
+    vendedor_nombre = update.message.text.strip()
+    if not vendedor_nombre:
+        await update.message.reply_text("⚠️ El nombre no puede estar vacío. Intenta de nuevo:")
+        return VENDEDOR
 
+    context.user_data["vendedor"] = vendedor_nombre
+    # Llamar a finalizar_cart pasando el update con mensaje
+    # Convertimos a callback_query simulado
+    from telegram import CallbackQuery, Message, User, Chat
+    from datetime import datetime
+    
+    query = update.callback_query
+    # Como venimos de un message, no hay callback_query. 
+    # Llamamos directamente a la lógica de finalizar
+    return await _finalizar_cart_logic(update, context, vendedor_nombre)
+
+
+async def _finalizar_cart_logic(update: Update, context: ContextTypes.DEFAULT_TYPE, vendedor_nombre: str):
+    """Lógica de finalizar venta (extraída para reutilizar)."""
     cart = context.user_data.get("cart", [])
     if not cart:
-        await edit_mensaje(query, "🛒 Carrito vacío.", reply_markup=botones_volver())
+        await update.message.reply_text("🛒 Carrito vacío.", reply_markup=botones_volver())
         return ConversationHandler.END
 
-    usuario = query.from_user
+    usuario = update.effective_user
     items_procesados = []
     errores = []
 
@@ -304,6 +328,7 @@ async def finalizar_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 precio_registrado=item["precio_registrado"],
                 usuario_id=usuario.id,
                 usuario_nombre=usuario.first_name,
+                vendedor=vendedor_nombre,
             )
             items_procesados.append({
                 "codigo": item["codigo"],
@@ -327,14 +352,15 @@ async def finalizar_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         texto += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         texto += f"💰 TOTAL: ${total:.2f}\n"
-        texto += f"📦 Ítems vendidos: {len(items_procesados)}"
+        texto += f"📦 Ítems vendidos: {len(items_procesados)}\n"
+        texto += f"👤 Vendedor: {vendedor_nombre}"
     else:
         texto = "❌ No se pudo procesar ningún artículo."
 
     if errores:
         texto += "\n\n⚠️ ERRORES:\n" + "\n".join(errores)
 
-    await edit_mensaje(query, texto, reply_markup=botones_volver())
+    await update.message.reply_text(texto, reply_markup=botones_volver())
     context.user_data.clear()
     return ConversationHandler.END
 
@@ -357,6 +383,7 @@ vender_handler = ConversationHandler(
         PRECIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, precio)],
         CONFIRMAR_ITEM: [CallbackQueryHandler(confirmar_item, pattern="^(confirmar|cancelar)$")],
         CART_SUMMARY: [CallbackQueryHandler(cart_callback, pattern="^cart_")],
+        VENDEDOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, vendedor)],
     },
     fallbacks=[
         CommandHandler("cancel", cancel_vender),
