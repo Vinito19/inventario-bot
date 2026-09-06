@@ -106,6 +106,12 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
             admin = es_admin(query.from_user.id)
             await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin))
             return SELECT_CATEGORY
+        
+        # Validar que la categoría existe en BD
+        if not any(c["id"] == cat_id for c in categorias):
+            await edit_mensaje(query, "⚠️ Categoría inválida.", reply_markup=menu_categorias(categorias, puede_agregar=admin))
+            return SELECT_CATEGORY
+        
         context.user_data["categoria_id"] = cat_id
         await edit_mensaje(
             query,
