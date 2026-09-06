@@ -99,11 +99,11 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SELECT_CATEGORY
 
     if data.startswith("cat_"):
+        categorias = obtener_categorias()
+        admin = es_admin(query.from_user.id)
         try:
             cat_id = int(data.replace("cat_", ""))
         except ValueError:
-            categorias = obtener_categorias()
-            admin = es_admin(query.from_user.id)
             await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin))
             return SELECT_CATEGORY
         
