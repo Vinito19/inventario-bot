@@ -237,6 +237,8 @@ async def photo_4(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return CODIGO
     codigo_texto = update.message.text.strip()
     if not codigo_texto:
         msg = await update.message.reply_text("⚠️ El código no puede estar vacío. Intenta de nuevo:")
@@ -264,6 +266,8 @@ async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return NOMBRE
     nombre_texto = update.message.text.strip()
     if not nombre_texto:
         msg = await update.message.reply_text("⚠️ El nombre no puede estar vacío. Intenta de nuevo:")
@@ -282,6 +286,8 @@ async def nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def descripcion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return DESCRIPCION
     texto = update.message.text.strip()
     if not texto:
         msg = await update.message.reply_text("⚠️ La descripción no puede estar vacía. Intenta de nuevo:")
@@ -298,6 +304,8 @@ async def descripcion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cantidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return CANTIDAD
     texto = update.message.text.strip()
     if not texto.isdigit():
         msg = await update.message.reply_text("⚠️ Debes escribir un número entero. Intenta de nuevo:")
@@ -316,6 +324,8 @@ async def cantidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return PRECIO
     texto = update.message.text.strip()
     try:
         precio_valor = float(texto)
@@ -336,6 +346,8 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return UBICACION
     texto = update.message.text.strip()
     if not texto:
         msg = await update.message.reply_text("⚠️ La ubicación no puede estar vacía. Intenta de nuevo:")
