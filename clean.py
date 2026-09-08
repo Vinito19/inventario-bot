@@ -24,7 +24,7 @@ PATTERNS = {
     "backups": ["backup_inventario_*.zip", "backup_inventario_*.db"],
     "db_temp": ["test_inventario.db", "test_inventario.db-*"],
     "images": ["temp/foto_prueba_*.jpg", "temp/*.jpg", "temp/*.png"],
-    "logos": ["logo_vch.jpg", "mockup_proforma.*"],
+    "logos": ["mockup_proforma.*"],
     "cache": ["__pycache__", ".pytest_cache", ".mypy_cache"],
 }
 
