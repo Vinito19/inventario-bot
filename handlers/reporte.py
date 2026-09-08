@@ -565,8 +565,8 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
             ws.column_dimensions[col].width = w
 
         import os
-        from datetime import datetime
-        fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        import config
+        fecha_str = config.ahora().strftime("%Y%m%d_%H%M%S")
         archivo = f"ventas_{anio}_{mes:02d}_{fecha_str}.xlsx"
         ruta = os.path.join(os.getcwd(), archivo)
         wb.save(ruta)
@@ -637,8 +637,8 @@ async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYP
             ws.column_dimensions[col].width = w
 
         import os
-        from datetime import datetime
-        fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        import config
+        fecha_str = config.ahora().strftime("%Y%m%d_%H%M%S")
         archivo = f"cambios_{anio}_{mes:02d}_{fecha_str}.xlsx"
         ruta = os.path.join(os.getcwd(), archivo)
         wb.save(ruta)
@@ -679,3 +679,5 @@ ver_cambios_mes_conv = ConversationHandler(
 
 exportar_ventas_mes_handler = CallbackQueryHandler(exportar_ventas_mes, pattern=r"^exportar_ventas_mes_\d{4}_\d{2}$")
 exportar_cambios_mes_handler = CallbackQueryHandler(exportar_cambios_mes, pattern=r"^exportar_cambios_mes_\d{4}_\d{2}$")
+
+

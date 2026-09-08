@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,6 +12,11 @@ HORA_BACKUP = os.getenv("HORA_BACKUP", "00:00")
 BACKUP_HORA, BACKUP_MINUTO = (int(x) for x in HORA_BACKUP.split(":"))
 
 TIMEZONE = os.getenv("TIMEZONE", "America/Guayaquil")
+
+
+def ahora():
+    """Fecha y hora actual en la zona horaria configurada (Ecuador, UTC-5)."""
+    return datetime.now(ZoneInfo(TIMEZONE))
 
 if not BOT_TOKEN:
     raise ValueError("Falta BOT_TOKEN en el archivo .env")

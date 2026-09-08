@@ -1,8 +1,8 @@
 import os
-from datetime import datetime
 
 from openpyxl import Workbook
 
+import config
 from database import get_connection
 
 
@@ -84,7 +84,7 @@ def generar_excel():
     ws.auto_filter.ref = ws.dimensions
     ws.freeze_panes = "A2"
 
-    fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    fecha_str = config.ahora().strftime("%Y%m%d_%H%M%S")
     archivo = f"inventario_{fecha_str}.xlsx"
     ruta = os.path.join(os.getcwd(), archivo)
     wb.save(ruta)
@@ -154,7 +154,7 @@ def generar_excel_ventas():
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
-    fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    fecha_str = config.ahora().strftime("%Y%m%d_%H%M%S")
     archivo = f"ventas_{fecha_str}.xlsx"
     ruta = os.path.join(os.getcwd(), archivo)
     wb.save(ruta)
@@ -185,7 +185,7 @@ def generar_excel_cambios():
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
-    fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    fecha_str = config.ahora().strftime("%Y%m%d_%H%M%S")
     archivo = f"cambios_{fecha_str}.xlsx"
     ruta = os.path.join(os.getcwd(), archivo)
     wb.save(ruta)

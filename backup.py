@@ -3,7 +3,6 @@ import os
 import sqlite3
 import tempfile
 import zipfile
-from datetime import datetime
 
 import config
 from database import DB_NAME
@@ -27,7 +26,7 @@ def hacer_backup_db():
 
 
 def nombre_backup():
-    fecha = datetime.now().strftime("%Y%m%d_%H%M%S")
+    fecha = config.ahora().strftime("%Y%m%d_%H%M%S")
     return f"backup_inventario_{fecha}.db"
 
 
@@ -54,7 +53,7 @@ async def enviar_backup(context):
                 chat_id=destino,
                 document=f,
                 filename=nombre_zip,
-                caption=f"Backup automatico - {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+                caption=f"Backup automatico - {config.ahora().strftime('%d/%m/%Y %H:%M')}",
             )
         logging.info("Backup enviado a %s", destino)
     except Exception as e:

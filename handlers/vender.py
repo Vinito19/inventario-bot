@@ -290,20 +290,14 @@ async def cart_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def vendedor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recibe el nombre del vendedor y finaliza la venta."""
+    if not update.message or not update.message.text:
+        return VENDEDOR
     vendedor_nombre = update.message.text.strip()
     if not vendedor_nombre:
         await update.message.reply_text("⚠️ El nombre no puede estar vacío. Intenta de nuevo:")
         return VENDEDOR
 
     context.user_data["vendedor"] = vendedor_nombre
-    # Llamar a finalizar_cart pasando el update con mensaje
-    # Convertimos a callback_query simulado
-    from telegram import CallbackQuery, Message, User, Chat
-    from datetime import datetime
-    
-    query = update.callback_query
-    # Como venimos de un message, no hay callback_query. 
-    # Llamamos directamente a la lógica de finalizar
     return await _finalizar_cart_logic(update, context, vendedor_nombre)
 
 

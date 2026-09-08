@@ -1,6 +1,7 @@
 import math
 import os
-from datetime import datetime
+
+import config
 
 from fpdf import FPDF
 from PIL import Image
@@ -82,7 +83,7 @@ class PDFProforma(FPDF):
         self.cell(76, 8, "PROFORMA", align="R")
         self.set_font("helvetica", "", 8)
         self.set_xy(120, 16.5)
-        self.cell(76, 5, datetime.now().strftime("Fecha: %d/%m/%Y"), align="R")
+        self.cell(76, 5, config.ahora().strftime("Fecha: %d/%m/%Y"), align="R")
 
     def footer(self):
         # Pie de pagina con ondas fluidas
@@ -220,7 +221,7 @@ def generar_proforma(repuesto, fotos_paths):
                 _fit_image(pdf, restantes[2], 10 + half_w + gap, y_bot, half_w, h_bot)
 
     # ---- Guardar ----
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = config.ahora().strftime("%Y%m%d_%H%M%S")
     filename = f"proforma_{repuesto['codigo']}_{timestamp}.pdf"
     ruta_pdf = os.path.join(os.getcwd(), filename)
     pdf.output(ruta_pdf)
