@@ -33,6 +33,7 @@ from handlers.categorias import categorias_handler
 from handlers.usuarios import usuarios_handler
 from handlers.vender import vender_handler
 from handlers.buscarweb import buscarweb_handler, buscarweb_callback_handler
+from handlers.proforma import proforma_callback_handler, setlogo_handler
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
 
