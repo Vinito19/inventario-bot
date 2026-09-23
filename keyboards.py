@@ -160,3 +160,13 @@ def botones_detalle_usuario(usuario):
         [InlineKeyboardButton("❌ Volver", callback_data="usuarios")],
     ]
     return InlineKeyboardMarkup(keyboard)
+
+
+def menu_buscar_modo():
+    """Teclado para elegir modo de búsqueda: local o web."""
+    keyboard = [
+        [InlineKeyboardButton("📂 Buscar en base de datos local", callback_data="buscar_local")],
+        [InlineKeyboardButton("🌐 Buscar en internet", callback_data="buscar_web")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
