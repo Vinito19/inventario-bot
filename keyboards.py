@@ -100,8 +100,9 @@ def menu_resultados(resultados):
     return InlineKeyboardMarkup(keyboard)
 
 
-def menu_detalle_repuesto():
+def menu_detalle_repuesto(codigo: str = ""):
     keyboard = [
+        [InlineKeyboardButton("🌐 Buscar en internet", callback_data=f"buscarweb_{codigo}")],
         [InlineKeyboardButton("📄 Proforma", callback_data="proforma")],
         [InlineKeyboardButton("🔍 Nueva búsqueda", callback_data="buscar")],
         [InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")],

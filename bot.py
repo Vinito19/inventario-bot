@@ -32,7 +32,7 @@ from handlers.reporte import (
 from handlers.categorias import categorias_handler
 from handlers.usuarios import usuarios_handler
 from handlers.vender import vender_handler
-from handlers.proforma import proforma_callback_handler, setlogo_handler
+from handlers.buscarweb import buscarweb_handler, buscarweb_callback_handler
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -122,6 +122,9 @@ def main():
     app.add_handler(usuarios_handler)
 
     app.add_handler(setlogo_handler)
+    app.add_handler(proforma_callback_handler)
+    app.add_handler(buscarweb_handler)
+    app.add_handler(buscarweb_callback_handler)
     app.add_handler(proforma_callback_handler)
 
     app.add_handler(inicio_callback_handler)

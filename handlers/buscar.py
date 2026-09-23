@@ -138,15 +138,15 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     msg = await context.bot.send_message(
                         chat_id=chat_id,
                         text=texto,
-                        reply_markup=menu_detalle_repuesto(),
+                        reply_markup=menu_detalle_repuesto(repuesto['codigo']),
                     )
                     guardar_mensaje(update, context, msg)
                 except Exception:
                     context.user_data["repuesto_compartir"] = repuesto
-                    msg = await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=menu_detalle_repuesto())
+                    msg = await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=menu_detalle_repuesto(repuesto['codigo']))
             else:
                 context.user_data["repuesto_compartir"] = repuesto
-                await edit_mensaje(query, texto, reply_markup=menu_detalle_repuesto())
+                await edit_mensaje(query, texto, reply_markup=menu_detalle_repuesto(repuesto['codigo']))
 
         return VIEW_ITEM
 
