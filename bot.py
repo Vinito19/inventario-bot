@@ -9,7 +9,7 @@ from telegram.ext import Application, CallbackQueryHandler, Defaults
 from telegram.error import NetworkError
 
 from backup import enviar_backup
-from handlers.start import start_handler, inicio_callback_handler, aprobar_callback_handler, rechazar_callback_handler
+from handlers.start import start_handler, inicio_callback_handler, aprobar_callback_handler, rechazar_callback_handler, testerror_handler
 from handlers.agregar import agregar_handler
 from handlers.buscar import buscar_handler
 from handlers.editar import editar_handler
@@ -90,6 +90,7 @@ def main():
     app.add_error_handler(error_handler)
 
     app.add_handler(start_handler)
+    app.add_handler(testerror_handler)
     app.add_handler(aprobar_callback_handler)
     app.add_handler(rechazar_callback_handler)
 

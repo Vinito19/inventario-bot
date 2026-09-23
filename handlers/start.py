@@ -162,7 +162,17 @@ async def callback_rechazar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 
+async def test_error(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Solo para testing: dispara un error intencional para verificar alertas."""
+    user_id = update.effective_user.id
+    if user_id not in config.ADMIN_IDS:
+        await update.message.reply_text("❌ Solo administradores.")
+        return
+    raise RuntimeError("🧪 ERROR DE PRUEBA INTENCIONAL - Verificar alertas al admin")
+
+
 start_handler = CommandHandler("start", start)
 inicio_callback_handler = CallbackQueryHandler(callback_inicio, pattern="^inicio$")
 aprobar_callback_handler = CallbackQueryHandler(callback_aprobar, pattern="^aprobar_")
 rechazar_callback_handler = CallbackQueryHandler(callback_rechazar, pattern="^rechazar_")
+testerror_handler = CommandHandler("testerror", test_error)
