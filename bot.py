@@ -65,8 +65,12 @@ async def error_handler(update, context):
 
     try:
         if update and update.effective_message:
+            from keyboards import botones_volver
             await update.effective_message.reply_text(
-                "⚠️ Ocurrió un error inesperado. Intenta de nuevo."
+                "⚠️ <b>Ocurrió un error inesperado</b>\n\n"
+                "El bot se ha recuperado. Puedes continuar usando el menú principal:",
+                reply_markup=botones_volver(),
+                parse_mode="HTML"
             )
     except Exception:
         pass
