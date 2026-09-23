@@ -48,6 +48,8 @@ def init_db():
                 file_id_2 TEXT,
                 file_id_3 TEXT,
                 file_id_4 TEXT,
+                file_id_5 TEXT,
+                file_id_6 TEXT,
                 categoria_id INTEGER,
                 ubicacion TEXT,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -267,18 +269,24 @@ def obtener_repuesto(codigo):
 
 
 def agregar_repuesto(codigo, nombre, descripcion, cantidad, precio, file_ids, categoria_id, ubicacion):
-    if not file_ids or len(file_ids) != 4:
-        raise ValueError("Se requieren exactamente 4 fotos")
+    if not file_ids or len(file_ids) < 4 or len(file_ids) > 6:
+        raise ValueError("Se requieren entre 4 y 6 fotos")
     conn = get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO repuestos (codigo, nombre, descripcion, cantidad, precio,
                                    file_id_1, file_id_2, file_id_3, file_id_4,
+                                   file_id_5, file_id_6,
                                    categoria_id, ubicacion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (codigo, nombre, descripcion, cantidad, precio,
-              file_ids[0], file_ids[1], file_ids[2], file_ids[3],
+              file_ids[0] if len(file_ids) > 0 else None,
+              file_ids[1] if len(file_ids) > 1 else None,
+              file_ids[2] if len(file_ids) > 2 else None,
+              file_ids[3] if len(file_ids) > 3 else None,
+              file_ids[4] if len(file_ids) > 4 else None,
+              file_ids[5] if len(file_ids) > 5 else None,
               categoria_id, ubicacion))
         conn.commit()
     except sqlite3.IntegrityError as e:
@@ -292,6 +300,7 @@ def agregar_repuesto(codigo, nombre, descripcion, cantidad, precio, file_ids, ca
 CAMPOS_PERMITIDOS = {
     "nombre", "descripcion", "cantidad", "precio",
     "file_id_1", "file_id_2", "file_id_3", "file_id_4",
+    "file_id_5", "file_id_6",
     "categoria_id", "ubicacion",
 }
 

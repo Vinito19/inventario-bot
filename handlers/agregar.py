@@ -12,7 +12,7 @@ from database import (
 from keyboards import menu_categorias, menu_confirmar, botones_volver
 from handlers.utils import finalizar, edit_mensaje, guardar_mensaje, eliminar_fotos
 
-SELECT_CATEGORY, PHOTO_1, PHOTO_2, PHOTO_3, PHOTO_4, CODIGO, NOMBRE, DESCRIPCION, CANTIDAD, PRECIO, UBICACION, CONFIRMAR = range(12)
+SELECT_CATEGORY, PHOTO_1, PHOTO_2, PHOTO_3, PHOTO_4, DECIDIR_FOTOS_EXTRA, PHOTO_5, PHOTO_6, CODIGO, NOMBRE, DESCRIPCION, CANTIDAD, PRECIO, UBICACION, CONFIRMAR = range(15)
 
 FILTRO_IMAGEN = filters.PHOTO | filters.Document.IMAGE
 
@@ -222,8 +222,74 @@ async def photo_4(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_id = obtener_file_id(update)
     if file_id:
         context.user_data["file_ids"].append(file_id)
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        botones = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Sí, agregar 2 fotos extra", callback_data="fotos_extra_si"),
+             InlineKeyboardButton("➡️ No, continuar", callback_data="fotos_extra_no")]
+        ])
         msg = await update.message.reply_text(
-            "✅ 4 fotos recibidas correctamente\n\n"
+            "✅ 4 fotos principales recibidas\n\n"
+            "📸 ¿Desea agregar 2 fotos complementarias opcionales?\n"
+            "(Ejemplo: detalles, embalaje, etiquetas, etc.)",
+            reply_markup=botones,
+        )
+        guardar_mensaje(update, context, msg)
+        return DECIDIR_FOTOS_EXTRA
+
+    msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    guardar_mensaje(update, context, msg)
+    return PHOTO_4
+
+
+async def decidir_fotos_extra(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "fotos_extra_si":
+        await edit_mensaje(
+            query,
+            "📷 Foto 5 de 6: Foto complementaria 1\n\n"
+            "Envía la primera foto extra (detalle, embalaje, etiqueta, etc.).\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━░░ 83%",
+            reply_markup=botones_volver(),
+        )
+        return PHOTO_5
+    else:
+        await edit_mensaje(
+            query,
+            "✅ Continuando sin fotos extra\n\n"
+            "📝 Escribe el CÓDIGO del repuesto:\n"
+            "(Ejemplo: BRK-001)",
+            reply_markup=botones_volver(),
+        )
+        return CODIGO
+
+
+async def photo_5(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file_id = obtener_file_id(update)
+    if file_id:
+        context.user_data["file_ids"].append(file_id)
+        msg = await update.message.reply_text(
+            "✅ Foto 5 recibida\n\n"
+            "📷 Foto 6 de 6: Foto complementaria 2\n\n"
+            "Envía la segunda foto extra.\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100%",
+            reply_markup=botones_volver(),
+        )
+        guardar_mensaje(update, context, msg)
+        return PHOTO_6
+
+    msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
+    guardar_mensaje(update, context, msg)
+    return PHOTO_5
+
+
+async def photo_6(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file_id = obtener_file_id(update)
+    if file_id:
+        context.user_data["file_ids"].append(file_id)
+        msg = await update.message.reply_text(
+            "✅ 6 fotos recibidas correctamente (4 principales + 2 extra)\n\n"
             "📝 Escribe el CÓDIGO del repuesto:\n"
             "(Ejemplo: BRK-001)",
             reply_markup=botones_volver(),
@@ -233,7 +299,7 @@ async def photo_4(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
     guardar_mensaje(update, context, msg)
-    return PHOTO_4
+    return PHOTO_6
 
 
 async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -481,6 +547,15 @@ agregar_handler = ConversationHandler(
         ],
         PHOTO_4: [
             MessageHandler(FILTRO_IMAGEN, photo_4),
+            MessageHandler(filters.ALL & ~filters.COMMAND, no_es_imagen),
+        ],
+        DECIDIR_FOTOS_EXTRA: [CallbackQueryHandler(decidir_fotos_extra, pattern="^fotos_extra_(si|no)$")],
+        PHOTO_5: [
+            MessageHandler(FILTRO_IMAGEN, photo_5),
+            MessageHandler(filters.ALL & ~filters.COMMAND, no_es_imagen),
+        ],
+        PHOTO_6: [
+            MessageHandler(FILTRO_IMAGEN, photo_6),
             MessageHandler(filters.ALL & ~filters.COMMAND, no_es_imagen),
         ],
         CODIGO: [MessageHandler(filters.TEXT & ~filters.COMMAND, codigo)],
