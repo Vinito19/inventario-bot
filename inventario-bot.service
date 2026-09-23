@@ -1,0 +1,23 @@
+[Unit]
+Description=Inventario VCH Bot (con auto-restart y alertas)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vinicio
+WorkingDirectory=C:\Users\Vinicio\Documents\Inventario de Repuesto VCH
+Environment=PATH=C:\Users\Vinicio\Documents\Inventario de Repuesto VCH\venv\Scripts
+ExecStart=C:\Users\Vinicio\Documents\Inventario de Repuesto VCH\venv\Scripts\python.exe run_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=inventario-bot
+
+# Límites de recursos
+MemoryMax=500M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

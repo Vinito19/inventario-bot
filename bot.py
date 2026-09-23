@@ -43,6 +43,26 @@ async def error_handler(update, context):
         logging.warning("Error de red temporal (usuario puede reintentar): %s", error)
         return
     logging.error("Excepción al procesar update:", exc_info=error)
+    
+    # Notificar a administradores
+    try:
+        import traceback
+        tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        msg = (
+            f"🚨 <b>ERROR NO CAPTURADO EN EL BOT</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"<b>Error:</b> <code>{type(error).__name__}: {error}</code>\n"
+            f"<b>Update:</b> <code>{update}</code>\n"
+            f"<b>Traceback:</b>\n<pre>{tb[-3500:]}</pre>"
+        )
+        for admin_id in config.ADMIN_IDS:
+            try:
+                await context.bot.send_message(admin_id, msg, parse_mode="HTML")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     try:
         if update and update.effective_message:
             await update.effective_message.reply_text(
