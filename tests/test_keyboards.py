@@ -1,6 +1,7 @@
 import pytest
-
-import sys, os
+import sys
+import os
+import re
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -21,6 +22,8 @@ from keyboards import (
     botones_detalle_usuario,
 )
 
+from handlers.callback_security import generar_callback_token
+
 
 def _extract_data(menu):
     """Extrae todos los callback_data de un teclado."""
@@ -29,6 +32,14 @@ def _extract_data(menu):
         for btn in row:
             datas.append(btn.callback_data)
     return datas
+
+
+def _extract_base(data: str) -> str:
+    """Extrae la parte base del callback_data (sin firma HMAC)."""
+    # Formato: action_userid_signature
+    # Remover la firma (última parte después del último _)
+    parts = data.rsplit("_", 1)
+    return parts[0] if len(parts) == 2 else data
 
 
 def test_menu_admin():
@@ -136,14 +147,16 @@ def test_botones_usuario_pendientes():
     pend = [{"nombre": "Juan", "user_id": 111}]
     m = botones_usuario_pendientes(pend)
     datas = _extract_data(m)
-    assert "ver_user_111" in datas
+    bases = [_extract_base(d) for d in datas]
+    assert "ver_user_111" in bases
 
 
 def test_botones_admin_aprobar_rechazar():
     m = botones_admin_aprobar_rechazar(123)
     datas = _extract_data(m)
-    assert "aprobar_123" in datas
-    assert "rechazar_123" in datas
+    bases = [_extract_base(d) for d in datas]
+    assert "aprobar_123" in bases
+    assert "rechazar_123" in bases
 
 
 def test_botones_usuarios():
@@ -153,8 +166,9 @@ def test_botones_usuarios():
     ]
     m = botones_usuarios(usuarios)
     datas = _extract_data(m)
-    assert "ver_user_1" in datas
-    assert "ver_user_2" in datas
+    bases = [_extract_base(d) for d in datas]
+    assert "ver_user_1" in bases
+    assert "ver_user_2" in bases
     assert "agregar_usuario" in datas
     assert "inicio" in datas
 
@@ -163,9 +177,10 @@ def test_botones_detalle_usuario():
     u = {"user_id": 5, "rol": "usuario", "activo": 1}
     m = botones_detalle_usuario(u)
     datas = _extract_data(m)
-    assert "cambiar_estado_5" in datas
-    assert "cambiar_rol_5" in datas
-    assert "eliminar_usuario_5" in datas
+    bases = [_extract_base(d) for d in datas]
+    assert "cambiar_estado_5" in bases
+    assert "cambiar_rol_5" in bases
+    assert "eliminar_usuario_5" in bases
     assert "usuarios" in datas
 
 
@@ -173,4 +188,5 @@ def test_botones_detalle_usuario_admin():
     u = {"user_id": 6, "rol": "admin", "activo": 1}
     m = botones_detalle_usuario(u)
     datas = _extract_data(m)
-    assert "cambiar_rol_6" in datas  # texto depende del rol
+    bases = [_extract_base(d) for d in datas]
+    assert "cambiar_rol_6" in bases

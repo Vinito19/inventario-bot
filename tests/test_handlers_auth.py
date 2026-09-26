@@ -9,6 +9,7 @@ import pytest
 import config
 import database
 from database import registrar_usuario
+from handlers.callback_security import generar_callback_token
 
 
 class Msg:
@@ -175,7 +176,9 @@ async def test_callback_aprobar_admin_ok():
     pendiente_id = 7002
     registrar_usuario(pendiente_id, "Nuevo", rol="pendiente", activo=0)
 
-    query = Query(f"aprobar_{pendiente_id}", admin_id, admin_id)
+    # Usar callback_data firmado con HMAC
+    callback_data = generar_callback_token(pendiente_id, "aprobar")
+    query = Query(callback_data, admin_id, admin_id)
     update = Update(callback_query=query, effective_user=User(admin_id))
     context = Context(admin_id, is_admin=True)
 
@@ -192,7 +195,9 @@ async def test_callback_aprobar_datos_invalidos():
 
     admin_id = 9003
     registrar_usuario(admin_id, "Admin", rol="admin", activo=1)
-    query = Query("aprobar_abc", admin_id, admin_id)
+    # Callback con user_id inválido (abc) pero firma válida para ese payload
+    callback_data = generar_callback_token("abc", "aprobar")
+    query = Query(callback_data, admin_id, admin_id)
     update = Update(callback_query=query, effective_user=User(admin_id))
     context = Context(admin_id, is_admin=True)
 
