@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
-from database import buscar_repuestos, eliminar_repuesto, esta_registrado, es_admin
+from database import buscar_repuestos, eliminar_repuesto, es_admin
 from keyboards import menu_confirmar, botones_volver
 from handlers.utils import finalizar, edit_mensaje
 

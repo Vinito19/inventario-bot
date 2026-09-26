@@ -4,11 +4,8 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
 from database import (
-    obtener_repuesto,
-    esta_registrado,
     es_admin,
     set_config,
-    get_config,
 )
 from keyboards import botones_volver
 from handlers.utils import edit_mensaje, finalizar, guardar_mensaje

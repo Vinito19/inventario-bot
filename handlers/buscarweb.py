@@ -1,46 +1,20 @@
 #!/usr/bin/env python3
 """
-Handler para búsqueda web de repuestos.
-Comando: /buscarweb <codigo> [nombre]
-Botón en menú de repuesto.
+Callback handler para búsqueda web desde el botón en detalle de repuesto.
+Patrón: buscarweb_CODIGO
 """
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
 
 import config
 from database import obtener_repuesto, esta_registrado
 from keyboards import botones_volver
-from handlers.utils import edit_mensaje, finalizar
+from handlers.utils import edit_mensaje
 import web_search
-
-SEARCH_WEB = range(1)[0]
-
-
-async def buscarweb_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /buscarweb <codigo> [nombre]"""
-    user_id = update.effective_user.id
-    if not esta_registrado(user_id):
-        await update.message.reply_text("❌ No tienes acceso al bot.")
-        return ConversationHandler.END
-
-    args = context.args
-    if not args:
-        await update.message.reply_text(
-            "🔍 BÚSQUEDA WEB DE REPUESTO\n\n"
-            "Uso: <code>/buscarweb CODIGO [NOMBRE]</code>\n\n"
-            "Ejemplo: <code>/buscarweb 4121020-BE101 faro</code>",
-            parse_mode="HTML",
-            reply_markup=botones_volver(),
-        )
-        return ConversationHandler.END
-
-    codigo = args[0]
-    nombre = " ".join(args[1:]) if len(args) > 1 else ""
-    return await _buscar_y_mostrar(update, context, codigo, nombre)
 
 
 async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Callback desde botón en detalle de repuesto"""
+    """Callback desde botón en detalle de repuesto: buscarweb_CODIGO"""
     query = update.callback_query
     await query.answer()
 
@@ -62,17 +36,7 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await edit_mensaje(query, f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
     resultado = await web_search.buscar_repuesto_web(codigo, nombre)
-    return await _mostrar_resultado(query, context, resultado, codigo, nombre)
 
-
-async def _buscar_y_mostrar(update: Update, context: ContextTypes.DEFAULT_TYPE, codigo: str, nombre: str):
-    msg = await update.message.reply_text(f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
-    resultado = await web_search.buscar_repuesto_web(codigo, nombre)
-    return await _mostrar_resultado_msg(update, context, msg, resultado, codigo, nombre)
-
-
-async def _mostrar_resultado(query, context, resultado, codigo, nombre):
-    """Muestra resultado editando el mensaje del callback"""
     if not resultado:
         await edit_mensaje(
             query,
@@ -83,59 +47,37 @@ async def _mostrar_resultado(query, context, resultado, codigo, nombre):
         )
         return ConversationHandler.END
 
-    texto = _formatear_resultado(resultado)
-    botones = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Nueva búsqueda", callback_data=f"buscarweb_{codigo}")],
-        [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
-    ])
-    await edit_mensaje(query, texto, parse_mode="HTML", reply_markup=botones)
-    return ConversationHandler.END
-
-
-async def _mostrar_resultado_msg(update, context, msg, resultado, codigo, nombre):
-    """Muestra resultado editando un mensaje previo"""
-    if not resultado:
-        await msg.edit_text(
-            f"❌ No se encontró información para <b>{codigo}</b> {nombre or ''}.\n\n"
-            "Intenta con otro código o nombre.",
-            parse_mode="HTML",
-            reply_markup=botones_volver(),
-        )
-        return ConversationHandler.END
-
-    texto = _formatear_resultado(resultado)
-    botones = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Nueva búsqueda", callback_data=f"buscarweb_{codigo}")],
-        [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
-    ])
-    await msg.edit_text(texto, parse_mode="HTML", reply_markup=botones)
-    return ConversationHandler.END
-
-
-def _formatear_resultado(r: dict) -> str:
+    # Formatear resultado (inline para evitar duplicar lógica)
     lines = [
-        f"🌐 <b>BÚSQUEDA WEB: {r['codigo']}</b>",
+        f"🌐 <b>BÚSQUEDA WEB: {resultado['codigo']}</b>",
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
-    if r.get("marca"):
-        lines.append(f"🚗 <b>Marca:</b> {r['marca']}")
-    if r.get("modelo"):
-        lines.append(f"📋 <b>Modelo:</b> {r['modelo']}")
-    if r.get("tipo"):
-        lines.append(f"🔧 <b>Tipo de pieza:</b> {r['tipo']}")
-    if r.get("lado"):
-        lines.append(f"↔️ <b>Lado:</b> {r['lado']}")
+    if resultado.get("marca"):
+        lines.append(f"🚗 <b>Marca:</b> {resultado['marca']}")
+    if resultado.get("modelo"):
+        lines.append(f"📋 <b>Modelo:</b> {resultado['modelo']}")
+    if resultado.get("tipo"):
+        lines.append(f"🔧 <b>Tipo de pieza:</b> {resultado['tipo']}")
+    if resultado.get("lado"):
+        lines.append(f"↔️ <b>Lado:</b> {resultado['lado']}")
+    if resultado.get("precio_ecuador"):
+        lines.append(f"💰 <b>Precio Ecuador:</b> {resultado['precio_ecuador']}")
 
-    if r.get("snippets"):
+    if resultado.get("snippets"):
         lines.append(f"\n📄 <b>Fragmentos encontrados:</b>")
-        for i, s in enumerate(r["snippets"], 1):
+        for i, s in enumerate(resultado["snippets"], 1):
             lines.append(f"  {i}. {s[:150]}...")
 
-    lines.append(f"\n🔗 <b>Fuente:</b> {r['fuente']}")
+    lines.append(f"\n🔗 <b>Fuente:</b> {resultado['fuente']}")
     lines.append(f"⚠️ <i>Información extraída automáticamente, verificar manualmente.</i>")
 
-    return "\n".join(lines)
+    botones = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Nueva búsqueda", callback_data=f"buscarweb_{codigo}")],
+        [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
+    ])
+    await edit_mensaje(query, "\n".join(lines), parse_mode="HTML", reply_markup=botones)
+    return ConversationHandler.END
 
 
-buscarweb_handler = CommandHandler("buscarweb", buscarweb_cmd)
+# Solo se exporta el callback handler para el botón de detalle
 buscarweb_callback_handler = CallbackQueryHandler(buscarweb_callback, pattern="^buscarweb_")

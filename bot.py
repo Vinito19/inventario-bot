@@ -9,7 +9,7 @@ from telegram.ext import Application, CallbackQueryHandler, Defaults
 from telegram.error import NetworkError
 
 from backup import enviar_backup
-from handlers.start import start_handler, inicio_callback_handler, aprobar_callback_handler, rechazar_callback_handler, testerror_handler
+from handlers.start import start_handler, inicio_callback_handler, aprobar_callback_handler, rechazar_callback_handler
 from handlers.agregar import agregar_handler
 from handlers.buscar import buscar_handler
 from handlers.editar import editar_handler
@@ -32,7 +32,7 @@ from handlers.reporte import (
 from handlers.categorias import categorias_handler
 from handlers.usuarios import usuarios_handler
 from handlers.vender import vender_handler
-from handlers.buscarweb import buscarweb_handler, buscarweb_callback_handler
+from handlers.buscarweb import buscarweb_callback_handler
 from handlers.proforma import proforma_callback_handler, setlogo_handler
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -95,7 +95,6 @@ def main():
     app.add_error_handler(error_handler)
 
     app.add_handler(start_handler)
-    app.add_handler(testerror_handler)
     app.add_handler(aprobar_callback_handler)
     app.add_handler(rechazar_callback_handler)
 
@@ -124,9 +123,7 @@ def main():
 
     app.add_handler(setlogo_handler)
     app.add_handler(proforma_callback_handler)
-    app.add_handler(buscarweb_handler)
     app.add_handler(buscarweb_callback_handler)
-    app.add_handler(proforma_callback_handler)
 
     app.add_handler(inicio_callback_handler)
 
