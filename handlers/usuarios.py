@@ -11,6 +11,7 @@ from database import (
 )
 from keyboards import botones_usuarios, botones_detalle_usuario, botones_volver
 from handlers.utils import finalizar, edit_mensaje
+from handlers.callback_security import validar_callback_token
 
 ADD_USER_ID, ADD_USER_NAME, CONFIRMAR_DELETE = range(3)
 
@@ -150,28 +151,30 @@ async def ver_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     data = query.data
-    if data.startswith("ver_user_"):
-        user_id_ver = int(data.replace("ver_user_", ""))
-        usuario = obtener_usuario(user_id_ver)
+    user_id_ver = validar_callback_token(data, "ver_user")
+    if user_id_ver is None:
+        await edit_mensaje(query, "❌ Datos inválidos o callback manipulado.", reply_markup=botones_volver())
+        return ConversationHandler.END
 
-        if not usuario:
-            await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
-            return ConversationHandler.END
+    usuario = obtener_usuario(user_id_ver)
+    if not usuario:
+        await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
+        return ConversationHandler.END
 
-        rol = "👑 Admin" if usuario["rol"] == "admin" else "👤 Usuario"
-        estado = "✅ Activo" if usuario["activo"] else "❌ Desactivado"
+    rol = "👑 Admin" if usuario["rol"] == "admin" else "👤 Usuario"
+    estado = "✅ Activo" if usuario["activo"] else "❌ Desactivado"
 
-        texto = (
-            f"👤 DETALLE DEL USUARIO\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"👤 Nombre: {usuario['nombre']}\n"
-            f"🆔 user_id: {usuario['user_id']}\n"
-            f"🔑 Rol: {rol}\n"
-            f"📊 Estado: {estado}\n"
-            f"📅 Registro: {usuario['fecha']}"
-        )
+    texto = (
+        f"👤 DETALLE DEL USUARIO\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👤 Nombre: {usuario['nombre']}\n"
+        f"🆔 user_id: {usuario['user_id']}\n"
+        f"🔑 Rol: {rol}\n"
+        f"📊 Estado: {estado}\n"
+        f"📅 Registro: {usuario['fecha']}"
+    )
 
-        if usuario["user_id"] == user_id_admin:
+if usuario["user_id"] == user_id_admin:
             await edit_mensaje(
                 query,
                 texto + "\n\n⚠️ No puedes eliminarte a ti mismo.",
@@ -179,8 +182,6 @@ async def ver_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await edit_mensaje(query, texto, reply_markup=botones_detalle_usuario(usuario))
-
-        return CONFIRMAR_DELETE
 
     return CONFIRMAR_DELETE
 
@@ -195,47 +196,51 @@ async def eliminar_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     data = query.data
-    if data.startswith("eliminar_usuario_"):
-        user_id_eliminar = int(data.replace("eliminar_usuario_", ""))
+    user_id_eliminar = validar_callback_token(data, "eliminar_usuario")
+    if user_id_eliminar is None:
+        await edit_mensaje(query, "❌ Datos inválidos o callback manipulado.", reply_markup=botones_volver())
+        return ConversationHandler.END
 
-        if user_id_eliminar == user_id_admin:
+    if user_id_eliminar == user_id_admin:
+        await edit_mensaje(
+            query,
+            "⚠️ No puedes eliminarte a ti mismo.",
+            reply_markup=botones_volver(),
+        )
+        return ConversationHandler.END
+
+    usuario = obtener_usuario(user_id_eliminar)
+    if not usuario:
+        await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
+        return ConversationHandler.END
+
+    if usuario["rol"] == "admin" and usuario["activo"] == 1:
+        admin_count = contar_admins_activos()
+        if admin_count <= 1:
             await edit_mensaje(
                 query,
-                "⚠️ No puedes eliminarte a ti mismo.",
+                "⚠️ No se puede eliminar al ultimo administrador.",
                 reply_markup=botones_volver(),
             )
             return ConversationHandler.END
 
-        usuario = obtener_usuario(user_id_eliminar)
-        if not usuario:
-            await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
-            return ConversationHandler.END
+    eliminar_usuario_db(user_id_eliminar)
 
-        if usuario["rol"] == "admin" and usuario["activo"] == 1:
-            admin_count = contar_admins_activos()
-            if admin_count <= 1:
-                await edit_mensaje(
-                    query,
-                    "⚠️ No se puede eliminar al ultimo administrador.",
-                    reply_markup=botones_volver(),
-                )
-                return ConversationHandler.END
+    await edit_mensaje(
+        query,
+        f"✅ Usuario {usuario['nombre']} eliminado.",
+        reply_markup=botones_volver(),
+    )
 
-        eliminar_usuario_db(user_id_eliminar)
-
-        await edit_mensaje(
-            query,
-            f"✅ Usuario {usuario['nombre']} eliminado.",
-            reply_markup=botones_volver(),
+    try:
+        await context.bot.send_message(
+            chat_id=user_id_eliminar,
+            text="❌ Tu acceso al bot ha sido revocado por el administrador.",
         )
+    except Exception:
+        pass
 
-        try:
-            await context.bot.send_message(
-                chat_id=user_id_eliminar,
-                text="❌ Tu acceso al bot ha sido revocado por el administrador.",
-            )
-        except Exception:
-            pass
+    return ConversationHandler.END
 
         return ConversationHandler.END
 
@@ -256,23 +261,26 @@ async def cambiar_estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(query, "❌ Solo el administrador puede realizar esta acción.")
         return ConversationHandler.END
 
-    uid = int(query.data.replace("cambiar_estado_", ""))
+    uid = validar_callback_token(query.data, "cambiar_estado")
+    if uid is None:
+        await edit_mensaje(query, "❌ Datos inválidos o callback manipulado.", reply_markup=botones_volver())
+        return ConversationHandler.END
 
     if uid == user_id_admin:
         await edit_mensaje(query, "⚠️ No puedes desactivarte a ti mismo.", reply_markup=botones_volver())
-        return CONFIRMAR_DELETE
+        return ConversationHandler.END
 
     usuario = obtener_usuario(uid)
     if not usuario:
         await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
-        return CONFIRMAR_DELETE
+        return ConversationHandler.END
 
     # Evitar desactivar al último admin activo
     if usuario["rol"] == "admin" and usuario["activo"] == 1:
         admin_count = contar_admins_activos()
         if admin_count <= 1:
             await edit_mensaje(query, "⚠️ No se puede desactivar al último administrador.", reply_markup=botones_volver())
-            return CONFIRMAR_DELETE
+            return ConversationHandler.END
 
     nuevo_estado = 0 if usuario["activo"] else 1
     cambiar_estado_usuario(uid, nuevo_estado)
@@ -304,16 +312,19 @@ async def cambiar_rol(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(query, "❌ Solo el administrador puede realizar esta acción.")
         return ConversationHandler.END
 
-    uid = int(query.data.replace("cambiar_rol_", ""))
+    uid = validar_callback_token(query.data, "cambiar_rol")
+    if uid is None:
+        await edit_mensaje(query, "❌ Datos inválidos o callback manipulado.", reply_markup=botones_volver())
+        return ConversationHandler.END
 
     if uid == user_id_admin:
         await edit_mensaje(query, "⚠️ No puedes cambiar tu propio rol.", reply_markup=botones_volver())
-        return CONFIRMAR_DELETE
+        return ConversationHandler.END
 
     usuario = obtener_usuario(uid)
     if not usuario:
         await edit_mensaje(query, "❌ Usuario no encontrado.", reply_markup=botones_volver())
-        return CONFIRMAR_DELETE
+        return ConversationHandler.END
 
     if usuario["rol"] == "admin":
         admin_count = contar_admins_activos()
@@ -323,7 +334,7 @@ async def cambiar_rol(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "⚠️ No se puede quitar admin al último administrador.",
                 reply_markup=botones_volver(),
             )
-            return CONFIRMAR_DELETE
+            return ConversationHandler.END
         nuevo_rol = "usuario"
     else:
         nuevo_rol = "admin"
@@ -355,19 +366,19 @@ usuarios_handler = ConversationHandler(
             ),
             CallbackQueryHandler(
                 ver_usuario,
-                pattern="^ver_user_",
+                pattern="^ver_user_[0-9]+_[a-f0-9]+$",
             ),
             CallbackQueryHandler(
                 eliminar_usuario,
-                pattern="^eliminar_usuario_",
+                pattern="^eliminar_usuario_[0-9]+_[a-f0-9]+$",
             ),
             CallbackQueryHandler(
                 cambiar_estado,
-                pattern="^cambiar_estado_",
+                pattern="^cambiar_estado_[0-9]+_[a-f0-9]+$",
             ),
             CallbackQueryHandler(
                 cambiar_rol,
-                pattern="^cambiar_rol_",
+                pattern="^cambiar_rol_[0-9]+_[a-f0-9]+$",
             ),
             CallbackQueryHandler(callback_usuarios, pattern="^usuarios$"),
         ],

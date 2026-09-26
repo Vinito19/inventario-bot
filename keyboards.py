@@ -1,5 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+from handlers.callback_security import generar_callback_token
+
 
 def menu_admin():
     keyboard = [
@@ -116,7 +118,7 @@ def botones_usuario_pendientes(usuarios):
         keyboard.append([
             InlineKeyboardButton(
                 f"👤 {u['nombre']} ({u['user_id']})",
-                callback_data=f"ver_user_{u['user_id']}",
+                callback_data=generar_callback_token(u['user_id'], "ver_user"),
             ),
         ])
     keyboard.append([InlineKeyboardButton("❌ Volver", callback_data="inicio")])
@@ -126,8 +128,8 @@ def botones_usuario_pendientes(usuarios):
 def botones_admin_aprobar_rechazar(user_id):
     keyboard = [
         [
-            InlineKeyboardButton("✅ Aprobar", callback_data=f"aprobar_{user_id}"),
-            InlineKeyboardButton("❌ Rechazar", callback_data=f"rechazar_{user_id}"),
+            InlineKeyboardButton("✅ Aprobar", callback_data=generar_callback_token(user_id, "aprobar")),
+            InlineKeyboardButton("❌ Rechazar", callback_data=generar_callback_token(user_id, "rechazar")),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -141,7 +143,7 @@ def botones_usuarios(usuarios):
         keyboard.append([
             InlineKeyboardButton(
                 f"{rol_icono} {u['nombre']} {estado}",
-                callback_data=f"ver_user_{u['user_id']}",
+                callback_data=generar_callback_token(u['user_id'], "ver_user"),
             ),
         ])
     keyboard.append([InlineKeyboardButton("➕ Agregar usuario", callback_data="agregar_usuario")])
@@ -154,9 +156,9 @@ def botones_detalle_usuario(usuario):
     texto_estado = "🟢 Activar" if not usuario["activo"] else "🔴 Desactivar"
     texto_rol = "⬇️ Quitar admin" if usuario["rol"] == "admin" else "⬆️ Hacer admin"
     keyboard = [
-        [InlineKeyboardButton(texto_estado, callback_data=f"cambiar_estado_{uid}")],
-        [InlineKeyboardButton(texto_rol, callback_data=f"cambiar_rol_{uid}")],
-        [InlineKeyboardButton("🗑️ Eliminar usuario", callback_data=f"eliminar_usuario_{uid}")],
+        [InlineKeyboardButton(texto_estado, callback_data=generar_callback_token(uid, "cambiar_estado"))],
+        [InlineKeyboardButton(texto_rol, callback_data=generar_callback_token(uid, "cambiar_rol"))],
+        [InlineKeyboardButton("🗑️ Eliminar usuario", callback_data=generar_callback_token(uid, "eliminar_usuario"))],
         [InlineKeyboardButton("❌ Volver", callback_data="usuarios")],
     ]
     return InlineKeyboardMarkup(keyboard)

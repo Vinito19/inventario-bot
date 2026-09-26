@@ -5,6 +5,7 @@ import config
 from database import obtener_usuario, registrar_usuario, aprobar_usuario, cambiar_estado_usuario, es_admin
 from keyboards import menu_admin, menu_usuario, botones_admin_aprobar_rechazar
 from handlers.utils import edit_mensaje, borrar_mensajes, eliminar_fotos
+from handlers.callback_security import validar_callback_token
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -103,10 +104,9 @@ async def callback_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     data = query.data
-    try:
-        user_id_aprobado = int(data.replace("aprobar_", ""))
-    except ValueError:
-        await edit_mensaje(query, "❌ Datos inválidos.")
+    user_id_aprobado = validar_callback_token(data, "aprobar")
+    if user_id_aprobado is None:
+        await edit_mensaje(query, "❌ Datos inválidos o callback manipulado.")
         return
 
     usuario = obtener_usuario(user_id_aprobado)
@@ -138,10 +138,9 @@ async def callback_rechazar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     data = query.data
-    try:
-        user_id_rechazado = int(data.replace("rechazar_", ""))
-    except ValueError:
-        await edit_mensaje(query, "❌ Datos inválidos.")
+    user_id_rechazado = validar_callback_token(data, "rechazar")
+    if user_id_rechazado is None:
+        await edit_mensaje(query, "❌ Datos inválidos o callback manipulado.")
         return
 
     usuario = obtener_usuario(user_id_rechazado)
@@ -164,5 +163,5 @@ async def callback_rechazar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 start_handler = CommandHandler("start", start)
 inicio_callback_handler = CallbackQueryHandler(callback_inicio, pattern="^inicio$")
-aprobar_callback_handler = CallbackQueryHandler(callback_aprobar, pattern="^aprobar_")
-rechazar_callback_handler = CallbackQueryHandler(callback_rechazar, pattern="^rechazar_")
+aprobar_callback_handler = CallbackQueryHandler(callback_aprobar, pattern="^aprobar_[0-9]+_[a-f0-9]+$")
+rechazar_callback_handler = CallbackQueryHandler(callback_rechazar, pattern="^rechazar_[0-9]+_[a-f0-9]+$")
