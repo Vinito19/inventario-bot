@@ -41,7 +41,7 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     nombre = repuesto["nombre"] if repuesto else ""
 
     await edit_mensaje(query, f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
-    resultado = await web_search.buscar_repuesto_web(codigo, nombre)
+    resultado = await web_search.buscar_repuesto_web(codigo, nombre, user_id=query.from_user.id)
 
     if not resultado:
         await edit_mensaje(

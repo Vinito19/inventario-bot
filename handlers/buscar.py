@@ -132,7 +132,7 @@ async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = partes[1] if len(partes) > 1 else ""
 
     msg = await update.message.reply_text(f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
-    resultado = await web_search.buscar_repuesto_web(codigo, nombre)
+    resultado = await web_search.buscar_repuesto_web(codigo, nombre, user_id=update.effective_user.id)
 
     if not resultado:
         await msg.edit_text(

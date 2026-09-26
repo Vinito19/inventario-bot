@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import quote_plus
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, asdict
+from collections import defaultdict
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -131,24 +132,28 @@ PATTERNS = {
     "precio": re.compile(r"(?i)(\$|usd|precio)\s*([\d.,]{2,10})"),
 }
 
-# Rate limiter simple (token bucket)
-class RateLimiter:
-    def __init__(self, max_per_minute: int = 10):
-        self.max_per_minute = max_per_minute
-        self.requests: List[float] = []
+# Rate limiter por usuario (token bucket)
+class UserRateLimiter:
+    def __init__(self, max_per_user: int = 3, window: int = 60):
+        self.max_per_user = max_per_user
+        self.window = window
+        self.user_requests: Dict[int, List[float]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
-    async def acquire(self):
+    async def acquire(self, user_id: int) -> bool:
+        """Intenta adquirir un slot para el usuario. Retorna True si OK, False si rate limited."""
         async with self._lock:
             now = time.time()
-            # Limpiar requests > 60s
-            self.requests = [t for t in self.requests if now - t < 60]
-            if len(self.requests) >= self.max_per_minute:
-                wait = 60 - (now - self.requests[0]) + 0.1
-                await asyncio.sleep(wait)
-            self.requests.append(time.time())
+            # Limpiar requests antiguos
+            self.user_requests[user_id] = [
+                t for t in self.user_requests[user_id] if now - t < self.window
+            ]
+            if len(self.user_requests[user_id]) >= self.max_per_user:
+                return False  # Rate limited
+            self.user_requests[user_id].append(now)
+            return True
 
-RATE_LIMITER = RateLimiter(max_per_minute=8)
+USER_RATE_LIMITER = UserRateLimiter(max_per_user=3, window=60)
 
 # ─── Caché persistente ────────────────────────────────────────────────
 class Cache:
@@ -245,7 +250,6 @@ def _limpiar_valor(valor: str) -> str:
 # ─── Búsqueda por motor ───────────────────────────────────────────────
 async def _buscar_en_motor(session: aiohttp.ClientSession, engine: dict, query: str) -> List[str]:
     """Busca en un motor específico y retorna lista de snippets."""
-    await RATE_LIMITER.acquire()
     url = f"{engine['url']}?{engine['param']}={quote_plus(query)}"
 
     try:
@@ -293,10 +297,16 @@ async def _buscar_con_reintentos(session: aiohttp.ClientSession, query: str, max
 
 
 # ─── Función principal ────────────────────────────────────────────────
-async def buscar_repuesto_web(codigo: str, nombre: str = "") -> Optional[Dict]:
+async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -> Optional[Dict]:
     """
     Busca repuesto y retorna dict con: marca, modelo, lado, tipo, precio_ecuador, snippets, fuente.
     """
+    # Rate limit por usuario (1 búsqueda = 1 request, no por motor)
+    if user_id > 0:
+        allowed = await USER_RATE_LIMITER.acquire(user_id)
+        if not allowed:
+            return None  # Rate limited
+
     # Validar y sanitizar entrada ANTES de usar
     try:
         codigo = validar_codigo_busqueda(codigo)
