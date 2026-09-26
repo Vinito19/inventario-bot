@@ -16,6 +16,82 @@ SELECT_CATEGORY, PHOTO_1, PHOTO_2, PHOTO_3, PHOTO_4, DECIDIR_FOTOS_EXTRA, PHOTO_
 
 FILTRO_IMAGEN = filters.PHOTO | filters.Document.IMAGE
 
+# Límites de longitud para validación
+MAX_CODIGO_LEN = 50
+MAX_NOMBRE_LEN = 100
+MAX_DESC_LEN = 500
+MAX_UBICACION_LEN = 100
+MAX_CODIGO_BUSQUEDA_LEN = 100
+
+
+import re
+
+
+def validar_texto(texto: str, max_len: int, campo: str) -> str:
+    """
+    Valida longitud y elimina caracteres de control peligrosos.
+    
+    Args:
+        texto: Texto a validar
+        max_len: Longitud máxima permitida
+        campo: Nombre del campo (para mensajes de error)
+    
+    Returns:
+        Texto limpio y validado
+    
+    Raises:
+        ValueError: Si el texto es inválido
+    """
+    if not texto or not texto.strip():
+        raise ValueError(f"{campo} no puede estar vacío")
+    
+    texto = texto.strip()
+    
+    if len(texto) > max_len:
+        raise ValueError(f"{campo} demasiado largo (máx {max_len} caracteres)")
+    
+    # Eliminar caracteres de control (excepto tab, newline, carriage return)
+    texto = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', texto)
+    
+    if not texto.strip():
+        raise ValueError(f"{campo} no puede contener solo caracteres de control")
+    
+    return texto
+
+
+def validar_codigo(texto: str) -> str:
+    """Valida código de repuesto (alfanumérico, guiones, puntos)."""
+    texto = texto.strip()
+    if not texto:
+        raise ValueError("Código no puede estar vacío")
+    if len(texto) > MAX_CODIGO_LEN:
+        raise ValueError(f"Código demasiado largo (máx {MAX_CODIGO_LEN} caracteres)")
+    if not re.match(r'^[a-zA-Z0-9\-\.]+$', texto):
+        raise ValueError("Código solo puede contener letras, números, guiones y puntos")
+    return texto
+
+
+def validar_nombre_repuesto(texto: str) -> str:
+    return validar_texto(texto, MAX_NOMBRE_LEN, "Nombre")
+
+
+def validar_descripcion(texto: str) -> str:
+    return validar_texto(texto, MAX_DESC_LEN, "Descripción")
+
+
+def validar_ubicacion(texto: str) -> str:
+    return validar_texto(texto, MAX_UBICACION_LEN, "Ubicación")
+
+
+def validar_codigo_busqueda(texto: str) -> str:
+    """Valida código para búsqueda (más permisivo)."""
+    texto = texto.strip()
+    if not texto:
+        raise ValueError("Código de búsqueda no puede estar vacío")
+    if len(texto) > MAX_CODIGO_BUSQUEDA_LEN:
+        raise ValueError(f"Código de búsqueda demasiado largo (máx {MAX_CODIGO_BUSQUEDA_LEN} caracteres)")
+    return texto
+
 
 def obtener_file_id(update: Update):
     if update.message.photo:
@@ -305,9 +381,10 @@ async def photo_6(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return CODIGO
-    codigo_texto = update.message.text.strip()
-    if not codigo_texto:
-        msg = await update.message.reply_text("⚠️ El código no puede estar vacío. Intenta de nuevo:")
+    try:
+        codigo_texto = validar_codigo(update.message.text)
+    except ValueError as e:
+        msg = await update.message.reply_text(f"⚠️ {e}")
         guardar_mensaje(update, context, msg)
         return CODIGO
 
@@ -334,9 +411,10 @@ async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return NOMBRE
-    nombre_texto = update.message.text.strip()
-    if not nombre_texto:
-        msg = await update.message.reply_text("⚠️ El nombre no puede estar vacío. Intenta de nuevo:")
+    try:
+        nombre_texto = validar_nombre_repuesto(update.message.text)
+    except ValueError as e:
+        msg = await update.message.reply_text(f"⚠️ {e}")
         guardar_mensaje(update, context, msg)
         return NOMBRE
 
@@ -354,11 +432,13 @@ async def nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def descripcion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return DESCRIPCION
-    texto = update.message.text.strip()
-    if not texto:
-        msg = await update.message.reply_text("⚠️ La descripción no puede estar vacía. Intenta de nuevo:")
+    try:
+        texto = validar_descripcion(update.message.text)
+    except ValueError as e:
+        msg = await update.message.reply_text(f"⚠️ {e}")
         guardar_mensaje(update, context, msg)
         return DESCRIPCION
+
     context.user_data["descripcion"] = texto
     msg = await update.message.reply_text(
         "📝 Escribe la CANTIDAD en stock:\n"
@@ -378,9 +458,15 @@ async def cantidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guardar_mensaje(update, context, msg)
         return CANTIDAD
 
-    context.user_data["cantidad"] = int(texto)
+    cantidad_val = int(texto)
+    if cantidad_val <= 0:
+        msg = await update.message.reply_text("⚠️ La cantidad debe ser mayor que cero. Intenta de nuevo:")
+        guardar_mensaje(update, context, msg)
+        return CANTIDAD
+
+    context.user_data["cantidad"] = cantidad_val
     msg = await update.message.reply_text(
-        f"✅ Cantidad: {texto}\n\n"
+        f"✅ Cantidad: {cantidad_val}\n\n"
         f"📝 Escribe el PRECIO:\n"
         f"(Ejemplo: 185.00)",
         reply_markup=botones_volver(),
@@ -414,9 +500,10 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return UBICACION
-    texto = update.message.text.strip()
-    if not texto:
-        msg = await update.message.reply_text("⚠️ La ubicación no puede estar vacía. Intenta de nuevo:")
+    try:
+        texto = validar_ubicacion(update.message.text)
+    except ValueError as e:
+        msg = await update.message.reply_text(f"⚠️ {e}")
         guardar_mensaje(update, context, msg)
         return UBICACION
     context.user_data["ubicacion"] = texto

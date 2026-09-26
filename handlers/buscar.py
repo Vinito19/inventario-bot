@@ -1,4 +1,5 @@
 import html
+import re
 from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
@@ -12,6 +13,21 @@ import web_search
 def _escape(text: str) -> str:
     """Escapa caracteres HTML para prevenir inyección."""
     return html.escape(text) if text else ""
+
+
+def validar_termino_busqueda(texto: str, max_len: int = 100) -> str:
+    """Valida término de búsqueda."""
+    if not texto or not texto.strip():
+        raise ValueError("Término de búsqueda no puede estar vacío")
+    texto = texto.strip()
+    if len(texto) > max_len:
+        raise ValueError(f"Término demasiado largo (máx {max_len} caracteres)")
+    # Eliminar caracteres de control
+    texto = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', texto)
+    if not texto.strip():
+        raise ValueError("Término de búsqueda no puede contener solo caracteres de control")
+    return texto
+
 
 SEARCH_MODE, SEARCH_LOCAL, SEARCH_WEB_INPUT, VIEW_ITEM = range(4)
 
@@ -81,9 +97,10 @@ async def search_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def search_local(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    termino = update.message.text.strip()
-    if not termino:
-        await update.message.reply_text("⚠️ Escribe algo para buscar. Intenta de nuevo:")
+    try:
+        termino = validar_termino_busqueda(update.message.text)
+    except ValueError as e:
+        await update.message.reply_text(f"⚠️ {e}")
         return SEARCH_LOCAL
 
     resultados = buscar_repuestos(termino)
@@ -121,9 +138,10 @@ async def search_local(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto_input = update.message.text.strip()
-    if not texto_input:
-        await update.message.reply_text("⚠️ Escribe el código y/o nombre. Intenta de nuevo:")
+    try:
+        texto_input = validar_termino_busqueda(update.message.text, max_len=150)
+    except ValueError as e:
+        await update.message.reply_text(f"⚠️ {e}")
         return SEARCH_WEB_INPUT
 
     # Separar código y nombre (primera palabra = código, resto = nombre)
