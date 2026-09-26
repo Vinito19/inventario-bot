@@ -298,20 +298,29 @@ def agregar_repuesto(codigo, nombre, descripcion, cantidad, precio, file_ids, ca
 
 
 CAMPOS_PERMITIDOS = {
-    "nombre", "descripcion", "cantidad", "precio",
-    "file_id_1", "file_id_2", "file_id_3", "file_id_4",
-    "file_id_5", "file_id_6",
-    "categoria_id", "ubicacion",
+    "nombre": "nombre",
+    "descripcion": "descripcion",
+    "cantidad": "cantidad",
+    "precio": "precio",
+    "file_id_1": "file_id_1",
+    "file_id_2": "file_id_2",
+    "file_id_3": "file_id_3",
+    "file_id_4": "file_id_4",
+    "file_id_5": "file_id_5",
+    "file_id_6": "file_id_6",
+    "categoria_id": "categoria_id",
+    "ubicacion": "ubicacion",
 }
 
 
 def editar_repuesto(codigo, campo, valor):
-    if campo not in CAMPOS_PERMITIDOS:
+    columna = CAMPOS_PERMITIDOS.get(campo)
+    if columna is None:
         raise ValueError(f"Campo no permitido: {campo}")
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute(f"UPDATE repuestos SET {campo} = ? WHERE codigo = ?", (valor, codigo))
+        cursor.execute(f"UPDATE repuestos SET {columna} = ? WHERE codigo = ?", (valor, codigo))
         conn.commit()
     finally:
         conn.close()
