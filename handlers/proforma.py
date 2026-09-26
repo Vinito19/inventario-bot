@@ -1,5 +1,6 @@
 import os
 import tempfile
+import shutil
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
@@ -12,6 +13,42 @@ from handlers.utils import edit_mensaje, finalizar, guardar_mensaje
 from pdf_proforma import generar_proforma
 
 SET_LOGO_WAIT = range(1)[0]
+
+
+# Tipos MIME permitidos y sus magic bytes
+ALLOWED_MIME_TYPES = {
+    'image/jpeg': [b'\xFF\xD8\xFF'],
+    'image/png': [b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A'],
+    'image/webp': [b'RIFF', b'WEBP'],
+}
+
+MIME_EXTENSIONS = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+}
+
+
+def validar_mime_type(filepath: str) -> str | None:
+    """
+    Valida el tipo MIME de un archivo leyendo sus magic bytes.
+    Retorna el MIME type si es válido, None si no lo es.
+    """
+    try:
+        with open(filepath, 'rb') as f:
+            header = f.read(16)
+        
+        for mime, signatures in ALLOWED_MIME_TYPES.items():
+            for sig in signatures:
+                if header.startswith(sig):
+                    return mime
+        
+        if len(header) >= 12 and header.startswith(b'RIFF') and header[8:12] == b'WEBP':
+            return 'image/webp'
+        
+        return None
+    except Exception:
+        return None
 
 
 async def set_logo_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -36,17 +73,43 @@ async def receive_logo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
         file_id = update.message.photo[-1].file_id
         archivo = await context.bot.get_file(file_id)
-        logo_path = os.path.join(os.getcwd(), "logo_vch.jpg")
-        await archivo.download_to_drive(logo_path)
         
-        set_config("logo_file_id", file_id)
-        set_config("logo_path", logo_path)
+        # Descargar a archivo temporal primero
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as tmp:
+            tmp_path = tmp.name
+            await archivo.download_to_drive(tmp_path)
         
-        await update.message.reply_text(
-            f"✅ Logo guardado correctamente.\nFile ID: `{file_id}`\nGuardado en: `{logo_path}`",
-            reply_markup=botones_volver(),
-        )
-        return ConversationHandler.END
+        try:
+            # Validar tipo MIME por magic bytes
+            mime = validar_mime_type(tmp_path)
+            if not mime:
+                os.remove(tmp_path)
+                await update.message.reply_text(
+                    "⚠️ Formato no permitido. Solo se aceptan imágenes JPG, PNG o WebP.",
+                    reply_markup=botones_volver(),
+                )
+                return SET_LOGO_WAIT
+            
+            # Determinar extensión correcta
+            ext = MIME_EXTENSIONS.get(mime, '.jpg')
+            logo_path = os.path.join(os.getcwd(), f"logo_vch{ext}")
+            
+            # Mover archivo temporal a ubicación final
+            shutil.move(tmp_path, logo_path)
+            
+            set_config("logo_file_id", file_id)
+            set_config("logo_path", logo_path)
+            
+            await update.message.reply_text(
+                f"✅ Logo guardado correctamente.\nFile ID: `{file_id}`\nTipo: {mime}\nGuardado en: `{logo_path}`",
+                reply_markup=botones_volver(),
+            )
+            return ConversationHandler.END
+        except Exception:
+            # Limpieza en caso de error
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            raise
     else:
         await update.message.reply_text("⚠️ Debes enviar una foto. Intenta de nuevo:")
         return SET_LOGO_WAIT
