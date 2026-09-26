@@ -3,6 +3,7 @@
 Callback handler para búsqueda web desde el botón en detalle de repuesto.
 Patrón: buscarweb_CODIGO
 """
+import html
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
 
@@ -11,6 +12,11 @@ from database import obtener_repuesto, esta_registrado
 from keyboards import botones_volver
 from handlers.utils import edit_mensaje
 import web_search
+
+
+def _escape(text: str) -> str:
+    """Escapa caracteres HTML para prevenir inyección."""
+    return html.escape(text) if text else ""
 
 
 async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -49,26 +55,26 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Formatear resultado (inline para evitar duplicar lógica)
     lines = [
-        f"🌐 <b>BÚSQUEDA WEB: {resultado['codigo']}</b>",
+        f"🌐 <b>BÚSQUEDA WEB: {_escape(resultado['codigo'])}</b>",
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
     if resultado.get("marca"):
-        lines.append(f"🚗 <b>Marca:</b> {resultado['marca']}")
+        lines.append(f"🚗 <b>Marca:</b> {_escape(resultado['marca'])}")
     if resultado.get("modelo"):
-        lines.append(f"📋 <b>Modelo:</b> {resultado['modelo']}")
+        lines.append(f"📋 <b>Modelo:</b> {_escape(resultado['modelo'])}")
     if resultado.get("tipo"):
-        lines.append(f"🔧 <b>Tipo de pieza:</b> {resultado['tipo']}")
+        lines.append(f"🔧 <b>Tipo de pieza:</b> {_escape(resultado['tipo'])}")
     if resultado.get("lado"):
-        lines.append(f"↔️ <b>Lado:</b> {resultado['lado']}")
+        lines.append(f"↔️ <b>Lado:</b> {_escape(resultado['lado'])}")
     if resultado.get("precio_ecuador"):
-        lines.append(f"💰 <b>Precio Ecuador:</b> {resultado['precio_ecuador']}")
+        lines.append(f"💰 <b>Precio Ecuador:</b> {_escape(resultado['precio_ecuador'])}")
 
     if resultado.get("snippets"):
         lines.append(f"\n📄 <b>Fragmentos encontrados:</b>")
         for i, s in enumerate(resultado["snippets"], 1):
-            lines.append(f"  {i}. {s[:150]}...")
+            lines.append(f"  {i}. {_escape(s[:150])}...")
 
-    lines.append(f"\n🔗 <b>Fuente:</b> {resultado['fuente']}")
+    lines.append(f"\n🔗 <b>Fuente:</b> {_escape(resultado['fuente'])}")
     lines.append(f"⚠️ <i>Información extraída automáticamente, verificar manualmente.</i>")
 
     botones = InlineKeyboardMarkup([
