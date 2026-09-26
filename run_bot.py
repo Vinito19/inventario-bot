@@ -11,6 +11,7 @@ import time
 import subprocess
 import logging
 import asyncio
+import re
 from datetime import datetime
 
 # Configurar paths
@@ -30,16 +31,30 @@ logging.basicConfig(
 )
 log = logging.getLogger("bot_runner")
 
+# Patrón para detectar tokens de Telegram en logs/URLs
+# Formato: [bot]NNNNNNNNN:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (34-35 chars after :)
+TOKEN_PATTERN = re.compile(r'(?:bot)?\d{8,10}:[A-Za-z0-9_-]{34,35}\b')
+
+
+def sanitize_text(text: str) -> str:
+    """Elimina tokens de Telegram del texto para evitar exposición en logs/alertas."""
+    if not text:
+        return text
+    return TOKEN_PATTERN.sub('[TOKEN_REDACTED]', text)
+
 
 async def alert_admin(text: str):
-    """Envía mensaje a todos los admins via Bot API directo (sin depender del bot corriendo)."""
+    """Envía mensaje a todos los admins via Bot API directo (sin depender del bot corriendo).
+    Usa header Authorization en lugar de token en URL para evitar exposición en logs."""
     try:
         import aiohttp
-        url = f"https://api.telegram.org/bot{config.BOT_TOKEN}/sendMessage"
+        # Usar header Authorization en lugar de token en URL
+        url = "https://api.telegram.org/bot/sendMessage"
+        headers = {"Authorization": f"Bearer {config.BOT_TOKEN}"}
         for admin_id in config.ADMIN_IDS:
             payload = {"chat_id": admin_id, "text": text, "parse_mode": "HTML"}
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=10) as resp:
+                async with session.post(url, json=payload, headers=headers, timeout=10) as resp:
                     if resp.status != 200:
                         log.warning(f"Alerta a admin {admin_id} falló: {resp.status}")
     except Exception as e:
@@ -79,9 +94,11 @@ async def main():
 
     # Alerta de inicio
     await alert_admin(
-        f"🟢 <b>BOT INICIADO</b>\n"
-        f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        f"Wrapper PID: {os.getpid()}"
+        sanitize_text(
+            f"🟢 <b>BOT INICIADO</b>\n"
+            f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Wrapper PID: {os.getpid()}"
+        )
     )
 
     while True:
@@ -95,9 +112,11 @@ async def main():
         if rc == 0:
             log.info("Bot terminó limpiamente (exit 0). No se reinicia.")
             await alert_admin(
-                f"🔵 <b>BOT DETENIDO LIMPIAMENTE</b>\n"
-                f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"Exit code: 0"
+                sanitize_text(
+                    f"🔵 <b>BOT DETENIDO LIMPIAMENTE</b>\n"
+                    f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"Exit code: 0"
+                )
             )
             break
 
@@ -106,19 +125,23 @@ async def main():
 
         # Alerta de crash
         await alert_admin(
-            f"🔴 <b>BOT CAYÓ - REINICIANDO</b>\n"
-            f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"Exit code: {rc}\n"
-            f"Reinicio #{restart_count}\n"
-            f"Reinicios en últimos 5 min: {len(restarts)}"
+            sanitize_text(
+                f"🔴 <b>BOT CAYÓ - REINICIANDO</b>\n"
+                f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Exit code: {rc}\n"
+                f"Reinicio #{restart_count}\n"
+                f"Reinicios en últimos 5 min: {len(restarts)}"
+            )
         )
 
         if len(restarts) >= max_restarts:
             log.critical("Demasiados reinicios en poco tiempo. Abortando.")
             await alert_admin(
-                f"💀 <b>BOT ABORTADO: DEMASIADOS CRASHES</b>\n"
-                f"Más de {max_restarts} reinicios en {restart_window//60} min.\n"
-                f"Requiere intervención manual."
+                sanitize_text(
+                    f"💀 <b>BOT ABORTADO: DEMASIADOS CRASHES</b>\n"
+                    f"Más de {max_restarts} reinicios en {restart_window//60} min.\n"
+                    f"Requiere intervención manual."
+                )
             )
             break
 
@@ -133,6 +156,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         log.info("Wrapper detenido por usuario (Ctrl+C)")
         asyncio.run(alert_admin(
-            f"🟡 <b>WRAPPER DETENIDO MANUALMENTE</b>\n"
-            f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            sanitize_text(
+                f"🟡 <b>WRAPPER DETENIDO MANUALMENTE</b>\n"
+                f"Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
         ))

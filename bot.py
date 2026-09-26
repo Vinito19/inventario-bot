@@ -48,13 +48,20 @@ async def error_handler(update, context):
     # Notificar a administradores
     try:
         import traceback
+        import re
         tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        
+        # Sanitizar traceback: eliminar tokens de Telegram
+        # Formato: [bot]NNNNNNNNN:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (34-35 chars after :)
+        TOKEN_PATTERN = re.compile(r'(?:bot)?\d{8,10}:[A-Za-z0-9_-]{34,35}\b')
+        tb = TOKEN_PATTERN.sub('[TOKEN_REDACTED]', tb)
+        
+        # NO enviar traceback completo, solo resumen limitado
         msg = (
             f"🚨 <b>ERROR NO CAPTURADO EN EL BOT</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"<b>Error:</b> <code>{type(error).__name__}: {error}</code>\n"
-            f"<b>Update:</b> <code>{update}</code>\n"
-            f"<b>Traceback:</b>\n<pre>{tb[-3500:]}</pre>"
+            f"<b>Traceback (resumen):</b>\n<pre>{tb[-1500:]}</pre>"
         )
         for admin_id in config.ADMIN_IDS:
             try:
