@@ -176,7 +176,9 @@ class Cache:
     def _save(self):
         try:
             raw = {k: {"value": v[0], "timestamp": v[1]} for k, v in self._data.items()}
-            with open(self.path, "w", encoding="utf-8") as f:
+            # Permisos restrictivos: solo owner read/write (0o600)
+            fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(raw, f, ensure_ascii=False)
         except Exception:
             pass
