@@ -447,23 +447,38 @@ def set_config(clave, valor):
 # ---------- VENTAS ----------
 
 def registrar_venta(codigo, cantidad, precio_unitario, precio_registrado, usuario_id, usuario_nombre, vendedor=None):
-    """Descuenta stock y registra la venta de forma atómica."""
+    """Descuenta stock y registra la venta de forma atómica (sin race condition)."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT codigo, nombre, precio, cantidad FROM repuestos WHERE codigo = ?", (codigo,))
-        r = cursor.fetchone()
-        if not r:
-            raise ValueError("Repuesto no encontrado")
+        
+        # Verificaciones básicas
         if cantidad <= 0:
             raise ValueError("La cantidad debe ser mayor que cero")
-        if r["cantidad"] < cantidad:
+        
+        # UPDATE atómico con verificación de stock en la misma operación
+        # Esto evita race condition (TOCTOU) entre check y update
+        cursor.execute("""
+            UPDATE repuestos 
+            SET cantidad = cantidad - ?
+            WHERE codigo = ? AND cantidad >= ?
+        """, (cantidad, codigo, cantidad))
+        
+        if cursor.rowcount == 0:
+            # Verificar si es por stock insuficiente o código inexistente
+            cursor.execute("SELECT cantidad, nombre FROM repuestos WHERE codigo = ?", (codigo,))
+            r = cursor.fetchone()
+            if not r:
+                raise ValueError("Repuesto no encontrado")
             raise ValueError(f"Stock insuficiente: disponible {r['cantidad']}, se intentaron vender {cantidad}")
-
-        nuevo_stock = r["cantidad"] - cantidad
+        
+        # Obtener nombre y nuevo stock para el registro de venta
+        cursor.execute("SELECT cantidad, nombre FROM repuestos WHERE codigo = ?", (codigo,))
+        r = cursor.fetchone()
+        nuevo_stock = r["cantidad"]
+        
         subtotal = round(cantidad * precio_unitario, 2)
-
-        cursor.execute("UPDATE repuestos SET cantidad = ? WHERE codigo = ?", (nuevo_stock, codigo))
+        
         cursor.execute("""
             INSERT INTO ventas (codigo, nombre, cantidad, precio_unitario, precio_registrado, subtotal, usuario_id, usuario_nombre, vendedor, fecha)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
