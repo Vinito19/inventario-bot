@@ -542,28 +542,42 @@ def obtener_resumen_ventas_por_fecha(fecha_inicio=None, fecha_fin=None):
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        where = ""
-        params = []
         if fecha_inicio and fecha_fin:
-            where = "WHERE date(fecha) BETWEEN date(?) AND date(?)"
-            params = [fecha_inicio, fecha_fin]
+            query = """
+                SELECT COUNT(*) as ventas,
+                       COALESCE(SUM(cantidad), 0) as unidades,
+                       COALESCE(SUM(subtotal), 0) as total
+                FROM ventas
+                WHERE date(fecha) BETWEEN date(?) AND date(?)
+            """
+            cursor.execute(query, (fecha_inicio, fecha_fin))
         elif fecha_inicio:
-            where = "WHERE date(fecha) >= date(?)"
-            params = [fecha_inicio]
+            query = """
+                SELECT COUNT(*) as ventas,
+                       COALESCE(SUM(cantidad), 0) as unidades,
+                       COALESCE(SUM(subtotal), 0) as total
+                FROM ventas
+                WHERE date(fecha) >= date(?)
+            """
+            cursor.execute(query, (fecha_inicio,))
         elif fecha_fin:
-            where = "WHERE date(fecha) <= date(?)"
-            params = [fecha_fin]
-
-        cursor.execute(f"SELECT COUNT(*) as ventas FROM ventas {where}", params)
-        ventas = cursor.fetchone()["ventas"]
-
-        cursor.execute(f"SELECT COALESCE(SUM(cantidad), 0) as unidades FROM ventas {where}", params)
-        unidades = cursor.fetchone()["unidades"]
-
-        cursor.execute(f"SELECT COALESCE(SUM(subtotal), 0) as total FROM ventas {where}", params)
-        total = cursor.fetchone()["total"]
-
-        return {"ventas": ventas, "unidades": unidades, "total": total}
+            query = """
+                SELECT COUNT(*) as ventas,
+                       COALESCE(SUM(cantidad), 0) as unidades,
+                       COALESCE(SUM(subtotal), 0) as total
+                FROM ventas
+                WHERE date(fecha) <= date(?)
+            """
+            cursor.execute(query, (fecha_fin,))
+        else:
+            cursor.execute("""
+                SELECT COUNT(*) as ventas,
+                       COALESCE(SUM(cantidad), 0) as unidades,
+                       COALESCE(SUM(subtotal), 0) as total
+                FROM ventas
+            """)
+        row = cursor.fetchone()
+        return {"ventas": row["ventas"], "unidades": row["unidades"], "total": row["total"]}
     finally:
         conn.close()
 
