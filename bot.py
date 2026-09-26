@@ -43,25 +43,29 @@ async def error_handler(update, context):
     if isinstance(error, NetworkError):
         logging.warning("Error de red temporal (usuario puede reintentar): %s", error)
         return
-    logging.error("Excepción al procesar update:", exc_info=error)
     
-    # Notificar a administradores
+    # Log completo SOLO en archivo local (con token sanitizado)
     try:
         import traceback
         import re
         tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
         
-        # Sanitizar traceback: eliminar tokens de Telegram
-        # Formato: [bot]NNNNNNNNN:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (34-35 chars after :)
+        # Sanitizar traceback para log local: eliminar tokens de Telegram
         TOKEN_PATTERN = re.compile(r'(?:bot)?\d{8,10}:[A-Za-z0-9_-]{34,35}\b')
         tb = TOKEN_PATTERN.sub('[TOKEN_REDACTED]', tb)
         
-        # NO enviar traceback completo, solo resumen limitado
+        # Log local con traceback completo (sanitizado)
+        logging.error("Excepción al procesar update:\n%s", tb)
+    except Exception:
+        logging.error("Excepción al procesar update:", exc_info=error)
+    
+    # Notificar a administradores - SOLO información no sensible
+    try:
         msg = (
-            f"🚨 <b>ERROR NO CAPTURADO EN EL BOT</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"<b>Error:</b> <code>{type(error).__name__}: {error}</code>\n"
-            f"<b>Traceback (resumen):</b>\n<pre>{tb[-1500:]}</pre>"
+            f"🚨 <b>Error en el bot</b>\n\n"
+            f"<b>Tipo:</b> {type(error).__name__}\n"
+            f"<b>Hora:</b> {config.ahora().strftime('%H:%M:%S')}\n"
+            f"\n<i>Revisa los logs del servidor para más detalles.</i>"
         )
         for admin_id in config.ADMIN_IDS:
             try:
