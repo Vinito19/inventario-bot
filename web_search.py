@@ -21,6 +21,43 @@ from dataclasses import dataclass, asdict
 import aiohttp
 from bs4 import BeautifulSoup
 
+# ─── Validación y sanitización de entrada ───────────────────────────────
+CODIGO_PATTERN = re.compile(r'^[a-zA-Z0-9\-\.]{1,50}$')
+NOMBRE_PATTERN = re.compile(r'^[a-zA-Z0-9\s\-\.\,\/]{0,100}$')
+
+
+def validar_codigo_busqueda(codigo: str) -> str:
+    """
+    Valida y sanitiza el código antes de buscar.
+    Solo permite alfanuméricos, guiones y puntos.
+    """
+    if not codigo:
+        raise ValueError("Código vacío")
+    # Eliminar cualquier carácter no permitido
+    limpio = re.sub(r'[^a-zA-Z0-9\-\.]', '', codigo)
+    if not limpio:
+        raise ValueError("Código de búsqueda inválido: solo se permiten letras, números, guiones y puntos")
+    if len(limpio) > 50:
+        raise ValueError("Código demasiado largo (máx 50 caracteres)")
+    if not CODIGO_PATTERN.match(limpio):
+        raise ValueError("Formato de código inválido")
+    return limpio
+
+
+def validar_nombre_busqueda(nombre: str) -> str:
+    """
+    Valida y sanitiza el nombre/descripción antes de buscar.
+    Permite alfanuméricos, espacios, guiones, puntos, comas y barras.
+    """
+    if not nombre:
+        return ""
+    # Eliminar caracteres no permitidos
+    limpio = re.sub(r'[^a-zA-Z0-9\s\-\.\,\/]', '', nombre)
+    if len(limpio) > 100:
+        limpio = limpio[:100]
+    return limpio.strip()
+
+
 # ─── Configuración ─────────────────────────────────────────────────────
 CACHE_FILE = Path(__file__).parent / "web_search_cache.json"
 CACHE_TTL = 3600 * 24  # 24 horas
@@ -260,6 +297,13 @@ async def buscar_repuesto_web(codigo: str, nombre: str = "") -> Optional[Dict]:
     """
     Busca repuesto y retorna dict con: marca, modelo, lado, tipo, precio_ecuador, snippets, fuente.
     """
+    # Validar y sanitizar entrada ANTES de usar
+    try:
+        codigo = validar_codigo_busqueda(codigo)
+        nombre = validar_nombre_busqueda(nombre)
+    except ValueError:
+        return None
+
     query = f"{codigo} {nombre}".strip()
     if not query:
         return None
