@@ -53,6 +53,28 @@ def test_normalize_price_invalido():
     assert normalize_price("solo texto") is None
 
 
+def test_normalize_price_moneda_nombrada_gana_al_dolar():
+    """Un "$" suelto no puede decidir la moneda si el texto la nombra."""
+    clp = normalize_price("$45.000 CLP")
+    assert (clp.amount, clp.currency) == (45000.0, "CLP")
+    # Sin nombre de moneda, el "$" sigue siendo dólares
+    usd = normalize_price("$45.000")
+    assert (usd.amount, usd.currency) == (45000.0, "USD")
+    # "US $" explícito no se deja sobreescribir por un nombre suelto
+    us = normalize_price("US $45.000")
+    assert (us.amount, us.currency) == (45000.0, "USD")
+    # Sin símbolo, el nombre de la moneda sí manda
+    assert normalize_price("45000 CLP").currency == "CLP"
+    assert normalize_price("Precio COP 89.900").currency == "COP"
+    # Nombres inequívocos por país
+    assert normalize_price("$ 1.000,00 Chile").currency == "CLP"
+
+
+def test_normalize_price_rechaza_simbolo_desconocido():
+    """Un símbolo raro se descarta en vez de asumirse como dólares."""
+    assert normalize_price("X$ 1.500") is None
+
+
 def test_to_usd_usd():
     assert to_usd(100, "USD") == 100.0
 
@@ -107,6 +129,27 @@ def test_extract_function():
     assert d._extract_function("caliper") == "Repuesto Automotriz"
 
 
+def test_extract_function_categorias_nuevas():
+    from scrapers.base import BaseScraper
+
+    class Dummy(BaseScraper):
+        def search_url(self, query):
+            return "https://x.com"
+
+        def _parse(self, html):
+            return []
+
+    d = Dummy()
+    assert d._extract_function("Amortiguador Trasero Kia Cerato") == "Amortiguador"
+    assert d._extract_function("Shock Absorber Trasero") == "Amortiguador"
+    assert d._extract_function("Pastillas de Freno Delanteras") == "Sistema de Frenos"
+    assert d._extract_function("Brake Pad Kit Front") == "Sistema de Frenos"
+    assert d._extract_function("Filtro de Aceite Toyota") == "Filtro"
+    assert d._extract_function("Oil Filter Mazda") == "Filtro"
+    # Un faro sigue siendo un faro, no un filtro ni un amortiguador
+    assert d._extract_function("Faro Delantero Derecho") == "Faro Delantero"
+
+
 def test_extract_side():
     from scrapers.base import BaseScraper
 
@@ -156,6 +199,64 @@ def test_extract_compatibility():
     compats = d._extract_compatibility("Faro para Toyota Corolla 2018-2021")
     assert any("Toyota" in c and "2018" in c for c in compats)
     assert d._extract_compatibility("faro") == ["Verificar con vendedor"]
+
+
+def test_extract_compatibility_marcas_ampliadas():
+    from scrapers.base import BaseScraper
+
+    class Dummy(BaseScraper):
+        def search_url(self, query):
+            return "https://x.com"
+
+        def _parse(self, html):
+            return []
+
+    d = Dummy()
+    for texto, esperado in [
+        ("Kia Soluto 2021", "Kia Soluto 2021"),
+        ("Hyundai Tucson 2020", "Hyundai Tucson 2020"),
+        ("Nissan frontier 2018-2021", "Nissan frontier 2018-2021"),
+        ("Mazda CX-3 2017-2021", "Mazda CX-3 2017-2021"),
+        ("Peugeot 208 año 2012", "Peugeot 208 2012"),
+        ("Changan CS15 año 2018", "Changan CS15 2018"),
+        ("great wall poer año 2021", "Great Wall poer 2021"),
+    ]:
+        assert d._extract_compatibility(texto) == [esperado], texto
+
+
+def test_extract_compatibility_ignora_palabras_del_rubro():
+    """El texto real es nombre + descripción, con la marca repetida. La
+    compatibilidad debe quedar limpia: modelo y años, sin el resto."""
+    from scrapers.base import BaseScraper
+
+    class Dummy(BaseScraper):
+        def search_url(self, query):
+            return "https://x.com"
+
+        def _parse(self, html):
+            return []
+
+    d = Dummy()
+    casos = {
+        "Faro Kia Soluto Faro delantero Kia Soluto lado derecho año 2021 2023":
+            "Kia Soluto 2021-2023",
+        "Faro Chery Faro delantero izquierdo Chery Tiggo 2 pro año 2021 2024":
+            "Chery Tiggo 2 pro 2021-2024",
+        "Faro delantero derecho Chery tiggo 2 pro, año 2021-2024 (con detalle)":
+            "Chery tiggo 2 pro 2021-2024",
+        "Faro de compuerta derecha Changan CS15 año 2018 _ 2020":
+            "Changan CS15 2018-2020",
+        "Retrovisor peugeot 208 año 2012 original": "Peugeot 208 2012",
+        "Mazda CX-3 2017-2021 Mascarilla delantera de Mazda CX-3 año 2017-2021":
+            "Mazda CX-3 2017-2021",
+    }
+    for texto, esperado in casos.items():
+        assert d._extract_compatibility(texto) == [esperado], texto
+
+    # Sin año no se inventa compatibilidad
+    assert d._extract_compatibility("Faro de compuerta Ranault Sandero") == [
+        "Verificar con vendedor"
+    ]
 
 
 def test_make_product_aplica_extractores():

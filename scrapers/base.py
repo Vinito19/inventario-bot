@@ -36,6 +36,28 @@ _GENERICOS = {
     "repuesto", "autoparts", "parts", "originales",
 }
 
+# Marcas para extraer compatibilidad (marca + modelo + años).
+# "Ranault" está junto a "Renault" a propósito: es el error de tipeo que hay en
+# la base de datos y ambos nombres aparecen en las descripciones.
+_MARCAS = (
+    "Chery", "Toyota", "Honda", "Ford", "Chevrolet", "Hyundai", "Kia",
+    "Nissan", "Mazda", "Peugeot", "Suzuki", "Mitsubishi", "Ram",
+    "Volkswagen", "Changan", "Great Wall", "Renault", "Ranault", "GWM",
+)
+_MARCAS_COMPATIBILIDAD = "|".join(re.escape(marca) for marca in _MARCAS)
+_MARCAS_PALABRAS = {marca.lower() for marca in _MARCAS} | {"great", "wall", "vw"}
+
+# Palabras que cortan el nombre del modelo: a partir de ahí ya no se está
+# hablando del modelo sino del tipo de pieza o de su posición
+# ("Kia Soluto Faro delantero derecho año 2021" -> "Soluto").
+_CORTE_MODELO = _GENERICOS | {
+    "faro", "farol", "mascarilla", "amortiguador", "retrovisor", "espejo",
+    "parachoques", "filtro", "pastillas", "freno", "brake", "oil", "año",
+    "anio", "luz", "unidad", "kit", "juego", "conjunto", "barra", "molded",
+    "foco", "piloto", "terminal", "cable", "bateria", "sensor", "bobina",
+    "lado", "lados", "y", "o", "u", "para", "con", "sin",
+}
+
 
 class RateLimitedError(ScrapeError):
     pass
@@ -252,6 +274,12 @@ class BaseScraper(ABC):
             return "Espejo Retrovisor"
         elif "parabrisas" in text_lower or "windshield" in text_lower:
             return "Parabrisas"
+        elif "amortiguador" in text_lower or "shock" in text_lower:
+            return "Amortiguador"
+        elif "freno" in text_lower or "brake" in text_lower:
+            return "Sistema de Frenos"
+        elif "filtro" in text_lower or "filter" in text_lower:
+            return "Filtro"
 
         return "Repuesto Automotriz"
 
@@ -289,27 +317,73 @@ class BaseScraper(ABC):
 
         return "No especificada"
 
+    @staticmethod
+    def _recortar_modelo(texto: str) -> str:
+        """Limpia el fragmento de modelo: descarta tipo de pieza, posición,
+        marcas y años, conservando el nombre del modelo
+        ("Soluto Faro delantero Kia Soluto lado derecho año 2021" -> "Soluto")."""
+        # El texto viene con nombre + descripción, así que la marca suele
+        # repetirse; lo que sigue a la última repetición es el modelo.
+        partes = re.split(rf"\b(?:{_MARCAS_COMPATIBILIDAD})\b", texto, re.IGNORECASE)
+        if len(partes) > 1:
+            texto = partes[-1]
+
+        palabras: List[str] = []
+        for palabra in re.split(r"\s+", texto.strip()):
+            limpia = palabra.strip(".,:;()[]_-").lower()
+            # Cualquier token con un año dentro ("2017", "2017-", "2018-2020")
+            # es un año, no parte del modelo.
+            if not limpia or re.search(r"(?:19|20)\d{2}", limpia):
+                continue
+            if limpia in _CORTE_MODELO or limpia in _MARCAS_PALABRAS:
+                continue
+            if palabras and limpia == palabras[-1].lower():
+                continue
+            palabras.append(palabra.strip(".,:;()[]_-"))
+        return " ".join(palabras[-3:])  # "CX 5", "CR V", "Tiggo 2 pro"
+
+    @staticmethod
+    def _recortar_anos(texto: str) -> str:
+        """Normaliza el rango de años: "2021 2023" / "2021- 2023" -> "2021-2023"."""
+        anios: List[str] = []
+        for anio in re.findall(r"(?:19|20)\d{2}", texto):
+            if anio not in anios:
+                anios.append(anio)
+            if len(anios) == 2:
+                break
+        return "-".join(anios)
+
     def _extract_compatibility(self, text: str) -> List[str]:
         """Extraer compatibilidad (marca + modelo + años) del texto."""
         compatibilities = []
 
-        # Buscar patrones de marca + modelo + año
+        # Buscar patrones de marca + modelo + año, en ambos órdenes:
+        # "Kia Soluto 2021" y "2021 Kia Soluto". Se toleran comas, guiones y la
+        # palabra "año" entre el modelo y el año ("Tiggo 2 pro, año 2021").
         patterns = [
-            r"(Chery|Toyota|Honda|Ford|Chevrolet)\s+([\w\s]+)\s+(20\d{2}(?:\s*[-,]\s*20\d{2})?)",
-            r"(20\d{2})\s+(Chery|Toyota|Honda|Ford|Chevrolet)\s+([\w\s]+)",
+            rf"({_MARCAS_COMPATIBILIDAD})\s+([\w\s\-.]+)[\s,–—-]*"
+            r"(?:(?:año|anio|modelo)[\s,–—-]*)?"
+            r"(20\d{2}(?:\s*[-,]\s*20\d{2})*)",
+            rf"(20\d{{2}})\s+({_MARCAS_COMPATIBILIDAD})\s+([\w\s\-.]+)",
         ]
 
         for pattern in patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            for match in matches:
-                if len(match) == 3:
-                    if match[0].isdigit():
-                        compat = f"{match[1]} {match[2]} {match[0]}"
-                    else:
-                        compat = f"{match[0]} {match[1]} {match[2]}"
-                    compatibilities.append(compat.strip())
+            for match in re.findall(pattern, text, re.IGNORECASE):
+                if len(match) != 3:
+                    continue
+                if match[0].isdigit():  # "2021 Kia Soluto"
+                    marca, modelo, anios = match[1], match[2], match[0]
+                else:  # "Kia Soluto 2021"
+                    marca, modelo, anios = match[0], match[1], match[2]
+                # Los años pueden haber quedado dentro del fragmento de modelo
+                # ("... año 2021" + "2023"), así que se leen de ambos.
+                rango = self._recortar_anos(f"{modelo} {anios}")
+                modelo = self._recortar_modelo(modelo)
+                compatibilities.append(
+                    f"{marca.title()} {modelo} {rango}".strip()
+                )
 
-        return list(set(compatibilities)) if compatibilities else ["Verificar con vendedor"]
+        return sorted(set(compatibilities)) if compatibilities else ["Verificar con vendedor"]
 
     def _extract_sibling_component(self, text: str, codigo: str) -> Optional[str]:
         """Extraer componente hermano (código similar, difiere en el último carácter)."""

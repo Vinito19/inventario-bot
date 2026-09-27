@@ -56,6 +56,18 @@ EXCHANGE_RATES = {
 
 FX_RATES = EXCHANGE_RATES  # alias de compatibilidad
 
+# Moneda nombrada explícitamente en el texto. Sólo se incluyen códigos ISO y
+# nombres de país inequívocos: "peso" y "sol" se excluyen porque aparecen
+# como subcadena en palabras comunes ("solución", "console") y "peso" es
+# compartido por CLP, COP, MXN y ARS.
+MONEDA_POR_NOMBRE = {
+    "USD": "USD", "CLP": "CLP", "COP": "COP", "PEN": "PEN", "MXN": "MXN",
+    "BRL": "BRL", "EUR": "EUR", "GBP": "GBP", "CAD": "CAD", "ARS": "ARS",
+    "ILS": "ILS", "CNY": "CNY", "RMB": "CNY",
+    "CHILE": "CLP", "COLOMBIA": "COP", "PERU": "PEN", "MEXICO": "MXN",
+    "BRASIL": "BRL", "ECUADOR": "USD",
+}
+
 CACHE_FILE = Path(__file__).parent / "exchange_rates_cache.json"
 
 
@@ -152,6 +164,15 @@ def _parse_amount(num: str) -> Optional[float]:
         return None
 
 
+def _moneda_por_texto(text: str) -> Optional[str]:
+    """Devuelve la moneda mencionada explícitamente en el texto, si la hay."""
+    mayusculas = text.upper()
+    for nombre, moneda in MONEDA_POR_NOMBRE.items():
+        if re.search(rf"\b{re.escape(nombre)}\b", mayusculas):
+            return moneda
+    return None
+
+
 def normalize_price(raw: str) -> Optional[PriceInfo]:
     """Extrae monto y moneda de un texto de precio."""
     if not raw:
@@ -165,12 +186,18 @@ def normalize_price(raw: str) -> Optional[PriceInfo]:
     if amount is None:
         return None
     symbol = (pre or post or "").upper().replace("US$", "USD")
-    if not symbol:
-        currency = "USD"
-    else:
+    if symbol:
         currency = CURRENCY_BY_SYMBOL.get(symbol)
         if currency is None:
+            # Símbolo desconocido ("X$", "Z$"): mejor descartar el precio que
+            # asumir que es dólares.
             return None
+        # Una moneda nombrada en el texto gana sobre un "$" suelto: en
+        # "$45.000 CLP" el precio está en pesos chilenos, no en dólares.
+        if symbol == "$" and (moneda := _moneda_por_texto(text)):
+            currency = moneda
+    else:
+        currency = _moneda_por_texto(text) or "USD"
     return PriceInfo(amount=amount, currency=currency, raw=raw.strip())
 
 
