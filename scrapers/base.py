@@ -80,10 +80,25 @@ class BaseScraper(ABC):
     request_delay: float = 1.0
     timeout: float = 12.0
     wait_for_selector: str = ""
+    # "visible" espera a que el elemento se vea; en catálogos con carruseles
+    # los productos quedan ocultos tras un slide y la espera se agota siempre.
+    # Con "attached" basta con que el nodo esté en el DOM, que es lo que lee
+    # el parser. "timeout_selector" acota esa espera: si el catálogo no tiene
+    # el repuesto, el selector no aparecerá nunca.
+    estado_selector: str = "visible"
+    timeout_selector: Optional[float] = None
     settle_ms: int = 3500
     # Si es False, sólo se busca por nombre: útil en catálogos que no indexan
     # el código OEM y donde cada consulta extra cuesta una carga completa.
     buscar_por_codigo: bool = True
+    # Catálogos que no indexan la frase completa del repuesto: al buscar
+    # "Faro Kia Soluto" no devuelven nada aunque sí tengan el faro. Se
+    # reintenta recortando los términos finales (marca, modelo y año).
+    degradar_consulta: bool = False
+    max_consultas_respaldo: int = 2
+    # Sitios que ya devuelven el HTML con los productos y no necesitan el
+    # navegador: se pide primero por HTTP y sólo se cae a Playwright si falla.
+    aiohttp_primero: bool = False
     viewport: Dict[str, int] = {"width": 1440, "height": 900}
     locale: str = "es-EC"
     headers: Dict[str, str] = {
@@ -167,7 +182,47 @@ class BaseScraper(ABC):
                 resultados.extend(
                     p for p in self._parse(html_extra) if self._es_relevante(p, consulta)
                 )
+
+        # Catálogos que no indexan la frase completa: se reintenta con el
+        # nombre recortado ("Faro Kia Soluto" -> "Faro Kia" -> "Faro"). Los
+        # resultados se validan contra la consulta ORIGINAL, no contra la
+        # recortada, para no perder precisión al ampliar la búsqueda.
+        if self.degradar_consulta and len(self._dedupe(resultados)) < limit:
+            respaldos = self._consultas_respaldo(consultas[0])
+            if respaldos:
+                await self._throttle()
+                for html_extra, consulta in zip(
+                    await self._get_html_multi([self.search_url(c) for c in respaldos]),
+                    respaldos,
+                ):
+                    if not html_extra:
+                        continue
+                    resultados.extend(
+                        p for p in self._parse(html_extra)
+                        if self._es_relevante(p, consultas[0])
+                    )
         return self._dedupe(resultados)[:limit]
+
+    def _consultas_respaldo(self, consulta: str) -> List[str]:
+        """Versiones más cortas de la consulta, de la más específica a la más amplia.
+
+        Los catálogos indexan descripciones cortas ("faro kia") y no la frase
+        completa del inventario ("Faro delantero izquierdo Kia Soluto 1.4
+        2019"): al recortar se conserva el tipo de pieza y el lado, que es lo
+        que distingue un faro de un ducto de aire, y se pierde el modelo y el
+        año, que es donde el catálogo es más exigente.
+        """
+        palabras = [p for p in re.split(r"\s+", (consulta or "").strip()) if p]
+        respaldos: List[str] = []
+        for largo in (3, 2, 1):
+            if len(palabras) <= largo:
+                continue
+            candidata = " ".join(palabras[:largo])
+            if candidata and candidata not in respaldos:
+                respaldos.append(candidata)
+            if len(respaldos) >= self.max_consultas_respaldo:
+                break
+        return respaldos
 
     def _make_product(self, nombre: str, extra_text: str = "", codigo: str = "",
                       precio_usd: float = 0.0, precio_original: float = 0.0,
@@ -264,7 +319,11 @@ class BaseScraper(ABC):
 
         if "luz diurna" in text_lower or "daytime running" in text_lower or "drl" in text_lower:
             return "Luz Diurna (DRL)"
+        # "Faro posterior" y "farol lateral" existen en el catálogo: un faro no
+        # es siempre delantero, así que se mira la posición antes del tipo.
         elif "faro" in text_lower or "headlight" in text_lower:
+            if "posterior" in text_lower or "trasero" in text_lower:
+                return "Faro Trasero"
             return "Faro Delantero"
         elif "farol" in text_lower or "tail light" in text_lower:
             return "Farol Trasero"
@@ -429,6 +488,8 @@ class BaseScraper(ABC):
     async def _fetch_html_layered(self, url: str,
                                   params: Optional[Dict[str, Any]] = None) -> str:
         fetch_order: List[Any] = []
+        if self.aiohttp_primero:
+            fetch_order.append(self._get_html_aiohttp)
         if self.use_cloudscraper:
             fetch_order.append(self._get_html_cloudscraper)
         if self.use_playwright:
@@ -481,7 +542,7 @@ class BaseScraper(ABC):
 
     async def _get_html_playwright(self, url: str,
                                    params: Optional[Dict[str, Any]] = None) -> str:
-        resultados = await self._get_html_multi([self._build_url(url, params)])
+        resultados = await self._navegador_html([self._build_url(url, params)])
         return resultados[0] if resultados else ""
 
     async def _get_html_multi(self, urls: List[str]) -> List[str]:
@@ -496,6 +557,35 @@ class BaseScraper(ABC):
         if not self.use_playwright:
             return [await self._get_html(u) for u in urls]
 
+        if self.aiohttp_primero:
+            # El sitio ya devuelve el HTML con los productos: se piden todas
+            # las páginas por HTTP a la vez y sólo las que fallan necesitan el
+            # navegador. Se evita a propósito llamar a `_get_html` aquí para no
+            # encadenar el fallback de Playwright con sí mismo.
+            resultados = await asyncio.gather(
+                *(self._get_html_aiohttp(u) for u in urls),
+                return_exceptions=True,
+            )
+            fallidas = [i for i, r in enumerate(resultados) if isinstance(r, Exception)]
+            if not fallidas:
+                return [str(r) for r in resultados]
+            logger.debug("[%s] %d de %d páginas requieren navegador",
+                         self.name, len(fallidas), len(urls))
+            for indice, html in zip(
+                fallidas,
+                await self._navegador_html([urls[i] for i in fallidas]),
+            ):
+                resultados[indice] = html
+            return [
+                "" if isinstance(r, Exception) else str(r) for r in resultados
+            ]
+
+        return await self._navegador_html(urls)
+
+    async def _navegador_html(self, urls: List[str]) -> List[str]:
+        """Carga las URLs con un único navegador de Playwright."""
+        if not urls:
+            return []
         from playwright.async_api import async_playwright
 
         wait_ms = int(self.timeout * 1000)
@@ -524,8 +614,11 @@ class BaseScraper(ABC):
                         await page.goto(url, timeout=wait_ms, wait_until="domcontentloaded")
                         if self.wait_for_selector:
                             try:
-                                await page.wait_for_selector(self.wait_for_selector,
-                                                            timeout=wait_ms)
+                                await page.wait_for_selector(
+                                    self.wait_for_selector,
+                                    timeout=int((self.timeout_selector or self.timeout) * 1000),
+                                    state=self.estado_selector,
+                                )
                             except Exception:
                                 logger.debug("[%s] selector %r no apareció en %s",
                                              self.name, self.wait_for_selector, url[:70])

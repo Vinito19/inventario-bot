@@ -1110,3 +1110,214 @@ class TestLadoDelRepuesto:
         s = self._s()
         assert s._extract_side('Amortiguador Trasero', '') == 'No especificado'
 
+
+# Tarjeta real de Mansuera (descargada de /productos?search=Faro+Kia+Soluto).
+# El enlace del producto es un slug en la raíz y el precio vive en un JSON
+# `data-cart-item`: con los selectores anteriores ("/producto") no se veía
+# ningún producto aunque la página viniera llena.
+MANSUERA_TARJETA_REAL = """
+<div class="item bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col h-full" x-data="">
+  <div class="b2c-media-frame b2c-media-frame--card">
+    <a class="b2c-media-frame__inner" href="/faro-delantero-rh-soluto-1-4-cn-hq02-62001-r"
+       title="FARO DELANTERO LADO DERECHO DEIFO KIA SOLUTO 1.4">
+      <img alt="FARO DELANTERO LADO DERECHO DEIFO KIA SOLUTO 1.4" loading="lazy"
+           src="/uploads/productos/01e78e3.png?v2026091401" title="FARO"/>
+    </a>
+    <picture class="b2c-product-card__brand" title="DEIFO">
+      <img alt="DEIFO" src="/uploads/marcas/aa11.png"/>
+    </picture>
+  </div>
+  <div class="p-4 flex flex-col gap-4">
+    <div class="flex items-start justify-between gap-2">
+      <div class="flex-1 min-w-0"><p class="text-sm">Marca</p>
+        <p class="text-base font-medium">DEIFO</p></div>
+      <div class="capitalize">original</div>
+    </div>
+    <div class="min-w-0"><p class="text-sm">Repuesto</p>
+      <p class="text-base font-medium" title="FARO DELANTERO LADO DERECHO DEIFO KIA SOLUTO 1.4">
+        <span>FARO DELANTERO LADO DERECHO DEIFO KIA SOLUTO 1.4</span></p></div>
+    <div class="min-w-0"><p class="text-xs">Codigo</p>
+      <p class="text-sm font-medium"><span>CN_HQ02-62001 R</span></p></div>
+    <div><p class="text-sm">Precio <small>(IVA incluido)</small></p>
+      <p class="text-lg font-bold"><span>$ 72.542</span></p></div>
+    <button class="btn-primary" data-cart-item='{"variacionId":153631,"sku":"CN_HQ02-62001 R",
+      "nombre":"FARO DELANTERO LADO DERECHO DEIFO KIA SOLUTO 1.4","marca":"DEIFO",
+      "precio":72.542,"stock":14}'>Agregar</button>
+  </div>
+</div>
+"""
+
+
+class TestMansueraTarjetaReal:
+    """El catálogo de Mansuera devuelve productos desde el 2026 con otra estructura."""
+
+    @staticmethod
+    def _s():
+        from scrapers.ecuador.mansuera import MansueraScraper
+        s = MansueraScraper()
+        s._query_codigo = "HQ02-62001"
+        return s
+
+    def test_extrae_nombre_precio_y_url(self):
+        s = self._s()
+        productos = s._parse(MANSUERA_TARJETA_REAL)
+        assert len(productos) == 1
+        p = productos[0]
+        assert p.nombre == "FARO DELANTERO LADO DERECHO DEIFO KIA SOLUTO 1.4"
+        assert p.url == ("https://www.mansuera.com"
+                         "/faro-delantero-rh-soluto-1-4-cn-hq02-62001-r")
+        assert p.lado == "Derecho"
+        assert p.funcion == "Faro Delantero"
+        assert p.imagen_url == "https://www.mansuera.com/uploads/productos/01e78e3.png?v2026091401"
+
+    def test_el_precio_no_se_multiplica_por_1000(self):
+        """$ 72.542 son 72,54 dólares: el punto no es separador de miles."""
+        s = self._s()
+        p = s._parse(MANSUERA_TARJETA_REAL)[0]
+        assert p.precio_usd == 72.542
+        assert p.precio_original == 72.542
+        assert p.moneda_original == "USD"
+
+    def test_ignora_los_enlaces_de_categoria(self):
+        """`/productos/repuestos/...` es navegación, no un producto."""
+        s = self._s()
+        html = ('<div class="item"><a class="b2c-media-frame__inner" '
+                'href="/productos/repuestos/carroceria/faros" title="Faros">'
+                '<img src="/uploads/faros.png"/></a></div>')
+        assert s._parse(html) == []
+
+    def test_omite_el_logo_de_reserva(self):
+        s = self._s()
+        html = MANSUERA_TARJETA_REAL.replace(
+            'src="/uploads/productos/01e78e3.png?v2026091401"',
+            'src="/bundles/app/images/logomansuera.png"')
+        assert s._parse(html)[0].imagen_url == ""
+
+    def test_va_por_http_sin_navegador_pero_conserva_playwright(self):
+        s = self._s()
+        assert s.aiohttp_primero is True
+        assert s.use_playwright is True
+
+    def test_degrada_la_consulta_para_no_devolver_cero(self):
+        assert self._s().degradar_consulta is True
+
+
+class TestEsperaDelSelector:
+    """Los productos de iMotriz están ocultos tras el carrusel."""
+
+    def test_imotriz_espera_a_nodo_adjunto_y_no_a_visibility(self):
+        from scrapers.ecuador.imotriz import ImotrizScraper
+        s = ImotrizScraper()
+        assert s.estado_selector == "attached"
+        assert s.timeout_selector == 8.0
+
+    def test_por_defecto_se_espera_a_visibility(self):
+        from scrapers.base import BaseScraper
+        assert BaseScraper.estado_selector == "visible"
+        assert BaseScraper.timeout_selector is None
+
+
+class TestConsultasDeRespaldo:
+    """Cuando el catálogo no indexa la frase completa, se recorta la consulta."""
+
+    @staticmethod
+    def _s(degradar=True):
+        from scrapers.ecuador.imotriz import ImotrizScraper
+        s = ImotrizScraper()
+        s.degradar_consulta = degradar
+        return s
+
+    def test_recorta_marca_modelo_y_anio(self):
+        s = self._s()
+        assert s._consultas_respaldo("Faro Kia Soluto") == ["Faro Kia", "Faro"]
+
+    def test_conserva_el_tipo_de_pieza_y_el_lado(self):
+        s = self._s()
+        assert s._consultas_respaldo("Faro delantero izquierdo Kia Soluto 1.4 2019") == [
+            "Faro delantero izquierdo", "Faro delantero"]
+
+    def test_no_hay_respaldo_para_una_sola_palabra(self):
+        assert self._s()._consultas_respaldo("Faro") == []
+        assert self._s()._consultas_respaldo("") == []
+
+    def test_limita_el_numero_de_consultas(self):
+        s = self._s()
+        s.max_consultas_respaldo = 1
+        assert s._consultas_respaldo("Faro Kia Soluto") == ["Faro Kia"]
+
+    def test_por_defecto_los_scrapers_no_degradan(self):
+        from scrapers.base import BaseScraper
+        assert BaseScraper.degradar_consulta is False
+        assert BaseScraper.aiohttp_primero is False
+
+    def test_reintenta_con_la_consulta_recortada(self):
+        import asyncio
+
+        s = self._s()
+        s._query_nombre = "Faro Kia Soluto"
+        pedidos = []
+
+        async def _get_html(url, params=None):
+            pedidos.append(url)
+            return "<html>sin resultados</html>"
+
+        async def _get_html_multi(urls):
+            pedidos.extend(urls)
+            return ["<html>tarjeta de un ducto, no de un faro</html>" for _ in urls]
+
+        def _parse(html):
+            return [] if "sin resultados" in html else [self._producto_faro()]
+
+        s._get_html = _get_html
+        s._get_html_multi = _get_html_multi
+        s._parse = _parse
+        productos = asyncio.run(s.search("HQ02-62001", "Faro Kia Soluto", limit=5))
+
+        assert len(productos) == 1
+        assert s.search_url("Faro Kia Soluto") in pedidos
+        # La búsqueda se amplía, pero la validación sigue siendo la original.
+        assert pedidos[-2:] == [s.search_url("Faro Kia"), s.search_url("Faro")]
+
+    def test_descarta_piezas_de_otra_consulta_ampliada(self):
+        """Al ampliar la búsqueda, el filtro debe seguir exigiendo la consulta original."""
+        from scrapers.models import Product
+        s = self._s()
+        ducto = Product(codigo="X", nombre="Ducto De Aire Niro 2016-2020", precio_usd=0.0,
+                        moneda_original="USD", precio_original=0.0, funcion="", lado="",
+                        tecnologia="", compatibilidad=[], sitio="imotriz",
+                        url="https://imotriz.ec/producto/abc/ducto")
+        assert s._es_relevante(ducto, "Faro Kia Soluto") is False
+        faro = Product(codigo="X", nombre="Faro Delantero Niro 2016-2020", precio_usd=0.0,
+                       moneda_original="USD", precio_original=0.0, funcion="", lado="",
+                       tecnologia="", compatibilidad=[], sitio="imotriz",
+                       url="https://imotriz.ec/producto/abc/faro")
+        assert s._es_relevante(faro, "Faro Kia Soluto") is True
+
+    @staticmethod
+    def _producto_faro():
+        from scrapers.models import Product
+        return Product(codigo="HQ02-62001", nombre="Faro Delantero Derecho Kia Soluto",
+                       precio_usd=72.54, moneda_original="USD", precio_original=72.54,
+                       funcion="Faro Delantero", lado="Derecho", tecnologia="",
+                       compatibilidad=[], sitio="imotriz",
+                       url="https://imotriz.ec/producto/abc/faro")
+
+
+class TestFuncionSegunPosicion:
+    """Un faro posterior no es un faro delantero."""
+
+    @staticmethod
+    def _s():
+        from scrapers.ecuador.imotriz import ImotrizScraper
+        return ImotrizScraper()
+
+    def test_faro_posterior(self):
+        s = self._s()
+        assert s._extract_function("FARO POSTERIOR LADO DERECHO KIA SOLUTO") == "Faro Trasero"
+        assert s._extract_function("Faro trasero Hyundai Santa Fe") == "Faro Trasero"
+
+    def test_faro_delantero_se_mantiene(self):
+        s = self._s()
+        assert s._extract_function("FARO DELANTERO IZQUIERDO KIA SOLUTO") == "Faro Delantero"
+        assert s._extract_function("Faro Kia Soluto") == "Faro Delantero"
+

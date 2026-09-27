@@ -27,6 +27,13 @@ class ImotrizScraper(BaseScraper):
     # anti-bot, y al ser "exitosa" impide que se intente Playwright.
     use_cloudscraper = False
     wait_for_selector = "a[href*='/producto/']"
+    # Los productos viven en un carrusel: los enlaces están en el DOM pero
+    # ocultos tras el slide activo, así que esperar a "visible" agotaba el
+    # tiempo en cada carga. Attached responde en ~0,3 s.
+    estado_selector = "attached"
+    # Si el catálogo no tiene el repuesto el selector no aparece nunca: no
+    # tiene sentido esperar los 30 s completos de `timeout`.
+    timeout_selector = 8.0
     settle_ms = 2500
     timeout = 30.0
     request_delay = 2.0
@@ -34,6 +41,12 @@ class ImotrizScraper(BaseScraper):
     # una carga completa de la SPA (~25 s) y siempre devuelve el aviso de
     # "selecciona un vehículo" sin productos.
     buscar_por_codigo = False
+    # El catálogo no indexa la frase completa: "Faro Kia Soluto" da cero
+    # resultados, pero "Faro Kia" y "Faro" sí devuelven tarjetas. El filtro de
+    # relevancia descarta las piezas de otro modelo que el buscador difuso
+    # incluye (el catálogo está indexado por vehículo).
+    degradar_consulta = True
+    max_consultas_respaldo = 2
     # El catálogo de iMotriz cotiza bajo pedido: no se puede obtener precio.
     TIENE_PRECIO = False
 
