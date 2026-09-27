@@ -56,7 +56,7 @@ _MARCAS_PALABRAS = {marca.lower() for marca in _MARCAS} | {"great", "wall", "vw"
 _CATEGORIAS_FUNCION: tuple = (
     (("luz diurna", "daytime running", "drl"), "Luz Diurna (DRL)"),
     (("faro posterior", "faro trasero"), "Faro Trasero"),
-    (("faro", "headlight"), "Faro Delantero"),
+    (("optico", "optica", "faro", "headlight"), "Faro Delantero"),
     (("farol", "tail light", "luz de freno", "stop light"), "Farol Trasero"),
     (("moldura", "moño", "monomoldura"), "Moldura"),
     (("guardafango", "fender"), "Guardafango"),
