@@ -85,6 +85,14 @@ def init_db():
                 usuario_nombre TEXT,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- Índices para mejorar rendimiento de búsquedas y reportes
+            CREATE INDEX IF NOT EXISTS idx_repuestos_categoria ON repuestos(categoria_id);
+            CREATE INDEX IF NOT EXISTS idx_repuestos_cantidad ON repuestos(cantidad);
+            CREATE INDEX IF NOT EXISTS idx_repuestos_codigo ON repuestos(codigo);
+            CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON ventas(fecha);
+            CREATE INDEX IF NOT EXISTS idx_ventas_codigo ON ventas(codigo);
+            CREATE INDEX IF NOT EXISTS idx_cambios_repuesto ON cambios(repuesto_codigo);
         """)
         conn.commit()
     finally:

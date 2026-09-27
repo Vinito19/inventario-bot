@@ -153,12 +153,12 @@ async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Si el código está en la BD, la descripción aporta marca/modelo/año.
     termino = _termino_busqueda_web(obtener_repuesto(codigo), nombre)
 
-    msg = await update.message.reply_text(f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
+    msg = await update.message.reply_text(f"🔍 Buscando en internet: <b>{_escape(codigo)}</b>...", parse_mode="HTML")
     resultado = await web_search.buscar_repuesto_web(codigo, termino, user_id=update.effective_user.id)
 
     if not resultado:
         await msg.edit_text(
-            f"❌ No se encontró información para <b>{codigo}</b> {nombre or ''}.\n\n"
+            f"❌ No se encontró información para <b>{_escape(codigo)}</b> {_escape(nombre or '')}.\n\n"
             "Intenta con otro código o nombre.",
             parse_mode="HTML",
             reply_markup=botones_volver(),
