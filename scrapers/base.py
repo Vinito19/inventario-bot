@@ -47,6 +47,42 @@ _MARCAS = (
 _MARCAS_COMPATIBILIDAD = "|".join(re.escape(marca) for marca in _MARCAS)
 _MARCAS_PALABRAS = {marca.lower() for marca in _MARCAS} | {"great", "wall", "vw"}
 
+# Categorías de función, en orden de prioridad: gana la primera que coincide.
+# El orden importa en dos casos:
+#   - "Faro posterior" antes que "faro": un faro no siempre es delantero.
+#   - "Moldura de guardafango" antes que "guardafango": la pieza es la moldura.
+# Los términos van sin acentos porque `_extract_function` los normaliza antes
+# de comparar, así "Alerón" y "Aleron" caen en la misma categoría.
+_CATEGORIAS_FUNCION: tuple = (
+    (("luz diurna", "daytime running", "drl"), "Luz Diurna (DRL)"),
+    (("faro posterior", "faro trasero"), "Faro Trasero"),
+    (("faro", "headlight"), "Faro Delantero"),
+    (("farol", "tail light", "luz de freno", "stop light"), "Farol Trasero"),
+    (("moldura", "moño", "monomoldura"), "Moldura"),
+    (("guardafango", "fender"), "Guardafango"),
+    (("parachoques", "bumper"), "Parachoques"),
+    (("mascarilla", "rejilla", "grille"), "Mascarilla"),
+    (("espejo", "retrovisor", "mirror"), "Espejo Retrovisor"),
+    (("parabrisas", "windshield", "winshield"), "Parabrisas"),
+    # Las piezas que se fijan al panel van ANTES que el panel: en "Bisagra
+    # Capot" y "Aleron de Compuerta" la función es la bisagra o el alerón.
+    (("bisagra", "hinge"), "Bisagra"),
+    (("aleron", "spoiler"), "Aleron"),
+    (("capot", "hood"), "Capot"),
+    (("compuerta", "porton"), "Compuerta"),
+    (("estribo", "running board", "side step"), "Estribo"),
+    (("guardapolvo", "mudguard", "fender flap"), "Guardapolvos"),
+    (("ducto", "conducto", "tuberia de aire"), "Ducto de Aire"),
+    (("radiador", "radiator"), "Radiador"),
+    (("bomba de agua", "water pump"), "Bomba de Agua"),
+    (("amortiguador", "shock", "strut"), "Amortiguador"),
+    (("freno", "brake", "pastilla", "caliper", "disco de freno"), "Sistema de Frenos"),
+    (("filtro", "filter"), "Filtro"),
+    (("buje", "rodamiento", "bearing"), "Rodamiento"),
+    (("embrague", "clutch"), "Embrague"),
+    (("transmision", "caja de cambios", "gearbox"), "Transmision"),
+)
+
 # Palabras que cortan el nombre del modelo: a partir de ahí ya no se está
 # hablando del modelo sino del tipo de pieza o de su posición
 # ("Kia Soluto Faro delantero derecho año 2021" -> "Soluto").
@@ -314,33 +350,40 @@ class BaseScraper(ABC):
         return coincide(especificos[0])
 
     def _extract_function(self, text: str) -> str:
-        """Extraer función del repuesto del texto."""
-        text_lower = text.lower()
+        """Extraer función del repuesto del texto.
 
-        if "luz diurna" in text_lower or "daytime running" in text_lower or "drl" in text_lower:
-            return "Luz Diurna (DRL)"
-        # "Faro posterior" y "farol lateral" existen en el catálogo: un faro no
-        # es siempre delantero, así que se mira la posición antes del tipo.
-        elif "faro" in text_lower or "headlight" in text_lower:
-            if "posterior" in text_lower or "trasero" in text_lower:
-                return "Faro Trasero"
-            return "Faro Delantero"
-        elif "farol" in text_lower or "tail light" in text_lower:
-            return "Farol Trasero"
-        elif "parachoques" in text_lower or "bumper" in text_lower:
-            return "Parachoques"
-        elif "espejo" in text_lower or "mirror" in text_lower:
-            return "Espejo Retrovisor"
-        elif "parabrisas" in text_lower or "windshield" in text_lower:
-            return "Parabrisas"
-        elif "amortiguador" in text_lower or "shock" in text_lower:
-            return "Amortiguador"
-        elif "freno" in text_lower or "brake" in text_lower:
-            return "Sistema de Frenos"
-        elif "filtro" in text_lower or "filter" in text_lower:
-            return "Filtro"
+        Se busca la primera categoría que coincida, en orden: los términos
+        específicos ("luz diurna", "faro posterior") van antes de los generales
+        ("faro") y las piezas de carrocería que se nombran junto al tipo
+        ("moldura de guardafango") antes que la pieza que las contiene.
+        """
+        texto = self._sin_acentos((text or "").lower())
+
+        for terminos, categoria in _CATEGORIAS_FUNCION:
+            if any(self._contiene_palabra(texto, t) for t in terminos):
+                return categoria
 
         return "Repuesto Automotriz"
+
+    @staticmethod
+    def _sin_acentos(texto: str) -> str:
+        """'Alerón' y 'Aleron' deben buscar la misma categoría."""
+        replacements = (
+            ("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"),
+            ("ü", "u"),
+        )
+        for acentuada, simple in replacements:
+            texto = texto.replace(acentuada, simple)
+        return texto
+
+    @staticmethod
+    def _contiene_palabra(texto: str, termino: str) -> bool:
+        """Busca un término como palabra completa, admitiendo plural y prefijo.
+
+        Sin límites, "aro" aparece dentro de "parachoques" y "capot" dentro de
+        "capotaje"; con límites, "ducto" no debe casar con "producto".
+        """
+        return bool(re.search(rf"\b{re.escape(termino)}\w{{0,2}}\b", texto))
 
     def _extract_side(self, text: str, codigo: str) -> str:
         """Extraer lado del repuesto."""

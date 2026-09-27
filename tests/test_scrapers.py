@@ -126,7 +126,10 @@ def test_extract_function():
     assert d._extract_function("luz diurna drl") == "Luz Diurna (DRL)"
     assert d._extract_function("espejo retrovisor") == "Espejo Retrovisor"
     assert d._extract_function("bumper") == "Parachoques"
-    assert d._extract_function("caliper") == "Repuesto Automotriz"
+    # El cáliper es una pieza del sistema de frenos, no una categoría desconocida.
+    assert d._extract_function("caliper") == "Sistema de Frenos"
+    # Sin categoría conocida sigue falling en la genérica.
+    assert d._extract_function("tornillo sextavado") == "Repuesto Automotriz"
 
 
 def test_extract_function_categorias_nuevas():
@@ -865,8 +868,12 @@ def test_make_product_no_hereda_funcion_del_termino_buscado():
     s._query_nombre = "faro"
     p = s._make_product(nombre="ducto de aire niro 2016-2020", precio_usd=10.0,
                         precio_original=10.0, moneda_original="USD")
-    assert p.funcion == "Repuesto Automotriz"
+    # Lo que importa es que la función venga del producto, no de la consulta.
+    assert p.funcion == "Ducto de Aire"
     assert p.nombre == "ducto de aire niro 2016-2020"
+    q = s._make_product(nombre="moldura guardafango niro", precio_usd=10.0,
+                        precio_original=10.0, moneda_original="USD")
+    assert q.funcion == "Moldura"
 
 
 def test_search_prioriza_nombre_sobre_codigo():
@@ -1320,4 +1327,51 @@ class TestFuncionSegunPosicion:
         s = self._s()
         assert s._extract_function("FARO DELANTERO IZQUIERDO KIA SOLUTO") == "Faro Delantero"
         assert s._extract_function("Faro Kia Soluto") == "Faro Delantero"
+
+
+class TestCategoriasDeFuncion:
+    """La tabla de categorías cubre las piezas que había en el inventario real."""
+
+    @staticmethod
+    def _s():
+        from scrapers.ecuador.imotriz import ImotrizScraper
+        return ImotrizScraper()
+
+    def test_carroceria_del_inventario_real(self):
+        s = self._s()
+        # "Retrovisor" no contiene "espejo": antes caía en la genérica.
+        assert s._extract_function("Retrovisor Peugeot 208") == "Espejo Retrovisor"
+        assert s._extract_function("Mascarilla delantera Mazda CX-3") == "Mascarilla"
+
+    def test_piezas_de_los_catalogos(self):
+        s = self._s()
+        assert s._extract_function("Ducto De Aire Niro 2016-2020") == "Ducto de Aire"
+        assert s._extract_function("Aleron De Compuerta Niro") == "Aleron"
+        assert s._extract_function("Moldura De Guardafango Lh Niro") == "Moldura"
+        assert s._extract_function("Capot Chery Tiggo 2 Pro") == "Capot"
+        assert s._extract_function("Radiador Ford Ranger") == "Radiador"
+        assert s._extract_function("Guardapolvos Trasero Chery Tiggo") == "Guardapolvos"
+        assert s._extract_function("Estribo Lateral Kia Sportage") == "Estribo"
+
+    def test_la_pieza_manda_sobre_el_panel_que_la_sostiene(self):
+        s = self._s()
+        assert s._extract_function("Bisagra Capot Hyundai Tucson") == "Bisagra"
+        assert s._extract_function("Aleron de Compuerta Kia Rio") == "Aleron"
+
+    def test_tolera_acentos(self):
+        s = self._s()
+        assert s._extract_function("Alerón Trasero Kia Rio") == "Aleron"
+        assert s._extract_function("Moldura Parachoques Delantero") == "Moldura"
+        assert s._extract_function("Faro Delantero Izquierdo") == "Faro Delantero"
+
+    def test_no_hay_falsos_positivos_por_subcadena(self):
+        s = self._s()
+        # "aro" no debe aparecer dentro de "parachoques" ni "capot" en "capotaje".
+        assert s._extract_function("Parachoques Trasero Nissan Frontier") == "Parachoques"
+        assert s._extract_function("Tornillo de Capotaje") == "Repuesto Automotriz"
+
+    def test_categoria_desconocida_cae_en_la_generica(self):
+        s = self._s()
+        assert s._extract_function("Tornillo Sextavado M8") == "Repuesto Automotriz"
+        assert s._extract_function("") == "Repuesto Automotriz"
 
