@@ -1,0 +1,470 @@
+"""Base común para todos los scrapers de repuestos."""
+import asyncio
+import random
+import re
+import time
+import logging
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlencode
+
+import aiohttp
+
+from scrapers.currency import PriceInfo
+from scrapers.models import Product
+
+logger = logging.getLogger(__name__)
+
+
+class ScrapeError(Exception):
+    pass
+
+
+_STOPWORDS = {
+    "de", "del", "la", "el", "los", "las", "para", "con", "un", "una",
+    "unos", "unas", "and", "the", "of", "en", "y", "a", "por",
+}
+
+# Palabras genéricas del rubro: si el único parecido es una de ellas, el
+# producto no es el buscado ("Refuerzo Delantero" no es un "faro delantero").
+_GENERICOS = {
+    "delantero", "delantera", "trasero", "trasera", "izquierdo", "derecho",
+    "izquierda", "original", "alternativo", "alternativa", "generico",
+    "repuesto", "repuestos", "automotriz", "automoviles", "vehiculo",
+    "toyota", "hyundai", "kia", "chevrolet", "nissan", "mazda", "honda",
+    "ford", "renault", "chery", "suzuki", "great", "wall", "motors",
+    "repuesto", "autoparts", "parts", "originales",
+}
+
+
+class RateLimitedError(ScrapeError):
+    pass
+
+
+class MaxRetriesError(ScrapeError):
+    pass
+
+
+class BaseScraper(ABC):
+    """Clase base para scrapers de sitios de repuestos."""
+
+    SITE_NAME = "Base"
+    COUNTRY = ""
+    BASE_URL = ""
+    currency: str = "USD"
+    use_cloudscraper: bool = False
+    use_playwright: bool = False
+    retries: int = 2
+    request_delay: float = 1.0
+    timeout: float = 12.0
+    wait_for_selector: str = ""
+    settle_ms: int = 3500
+    # Si es False, sólo se busca por nombre: útil en catálogos que no indexan
+    # el código OEM y donde cada consulta extra cuesta una carga completa.
+    buscar_por_codigo: bool = True
+    viewport: Dict[str, int] = {"width": 1440, "height": 900}
+    locale: str = "es-EC"
+    headers: Dict[str, str] = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "es-EC,es;q=0.9,en;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+
+    def __init__(self, session: Optional[aiohttp.ClientSession] = None,
+                 request_delay: Optional[float] = None):
+        self._session = session
+        self._cloudscraper_instance: Any = None
+        self._last_request_at = 0.0
+        self._query_codigo = ""
+        self._query_nombre = ""
+        if request_delay is not None:
+            self.request_delay = request_delay
+
+    @property
+    def name(self) -> str:
+        return self.SITE_NAME.lower()
+
+    @property
+    def country(self) -> str:
+        return self.COUNTRY
+
+    @property
+    def base_url(self) -> str:
+        return self.BASE_URL
+
+    @abstractmethod
+    def search_url(self, query: str) -> str:
+        ...
+
+    @abstractmethod
+    def _parse(self, html: str) -> List[Product]:
+        ...
+
+    async def search(self, codigo: str, nombre: str = "", limit: int = 5) -> List[Product]:
+        """Buscar repuesto por código y nombre.
+
+        Los catálogos de repuestos rara vez indexan el código OEM del
+        fabricante, pero sí el nombre descriptivo del repuesto. Por eso se
+        consulta primero el nombre y, sólo si no hay resultados, se reintenta
+        con el código (normalizado sin guiones, que es como lo indexan varios
+        sitios). Los scrapers con `buscar_por_codigo = False` evitan ese
+        segundo intento, que en catálogos lentos duplica el tiempo de espera.
+        """
+        self._query_codigo = (codigo or "").strip()
+        self._query_nombre = (nombre or "").strip()
+
+        candidatas: List[str] = [self._query_nombre]
+        if self.buscar_por_codigo:
+            candidatas += [self._query_codigo,
+                           self._query_codigo.replace("-", "").replace(".", "")]
+
+        consultas: List[str] = []
+        for consulta in candidatas:
+            if consulta and consulta not in consultas:
+                consultas.append(consulta)
+        if not consultas:
+            return []
+
+        resultados: List[Product] = []
+
+        # La primera consulta es la más probable (el nombre descriptivo).
+        html = await self._get_html(self.search_url(consultas[0]))
+        resultados.extend(p for p in self._parse(html) if self._es_relevante(p, consultas[0]))
+
+        # Si no bastó, el resto se pide en paralelo con un solo navegador:
+        # abrir un Chromium por consulta triplicaba el tiempo de espera.
+        if len(self._dedupe(resultados)) < limit and len(consultas) > 1:
+            await self._throttle()
+            for html_extra, consulta in zip(
+                await self._get_html_multi([self.search_url(c) for c in consultas[1:]]),
+                consultas[1:],
+            ):
+                if not html_extra:
+                    continue
+                resultados.extend(
+                    p for p in self._parse(html_extra) if self._es_relevante(p, consulta)
+                )
+        return self._dedupe(resultados)[:limit]
+
+    def _make_product(self, nombre: str, extra_text: str = "", codigo: str = "",
+                      precio_usd: float = 0.0, precio_original: float = 0.0,
+                      moneda_original: str = "", url: str = "", imagen_url: str = "") -> Product:
+        """Construye un Product aplicando los extractores de función/lado/tecnología.
+
+        Los extractores se alimentan sólo del producto (código, nombre y datos
+        del sitio). No se incluye el texto buscado: si no, todos los
+        resultados heredarían la función del término consultado.
+        """
+        codigo = codigo or self._query_codigo
+        text = f"{codigo} {nombre} {extra_text}".strip()
+        return Product(
+            codigo=codigo,
+            nombre=nombre.strip(),
+            precio_usd=precio_usd,
+            moneda_original=moneda_original or self.currency,
+            precio_original=precio_original,
+            funcion=self._extract_function(text),
+            lado=self._extract_side(text, codigo),
+            tecnologia=self._extract_technology(text),
+            compatibilidad=self._extract_compatibility(text),
+            componente_hermano=self._extract_sibling_component(text, codigo),
+            sitio=self.name,
+            pais=self.country,
+            url=url,
+            imagen_url=imagen_url,
+        )
+
+    def _dedupe(self, results: List[Product]) -> List[Product]:
+        seen = set()
+        out = []
+        for r in results:
+            key = (r.url or r.nombre).strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(r)
+        return out
+
+    def _es_relevante(self, producto: Product, consulta: str) -> bool:
+        """Filtra resultados que no corresponden a lo buscado.
+
+        Los catálogos usan búsquedas difusas: al pedir "faro" devuelven
+        ductos y molduras, y al pedir un código numérico devuelven la primera
+        página de resultados sin relación. Se exige que el producto comparta
+        el código OEM (en el nombre o en la URL, que suele incluirlo) o que su
+        tipo de pieza coincida con el término principal de la consulta.
+        """
+        consulta = (consulta or "").strip().lower()
+        if not consulta:
+            return True
+
+        objetivo = f"{producto.nombre} {producto.url}".lower()
+        objetivo_plano = re.sub(r"[^a-z0-9]", "", objetivo)
+
+        codigo_plano = re.sub(r"[^a-z0-9]", "", self._query_codigo.lower())
+        if len(codigo_plano) >= 6 and codigo_plano in objetivo_plano:
+            return True
+
+        tokens = [t for t in re.split(r"[^a-z0-9]+", consulta)
+                  if len(t) >= 4 and t not in _STOPWORDS]
+        if not tokens:
+            # La consulta es sólo un código ("225.429-02"). Los buscadores
+            # difusos devuelven piezas sin relación (el código se parte en
+            # "225" + "429" + "02" y casa con cualquier año del título), así
+            # que sin coincidencia del código en nombre o URL no se acepta.
+            if codigo_plano:
+                return codigo_plano in objetivo_plano
+            return True
+
+        # La coincidencia debe estar en el tipo de pieza, no en la
+        # descripción: "Deposito ... sin Lava Faros" menciona faros pero es
+        # un depósito limpiaparabrisas. Se mira el inicio del título.
+        tipo_pieza = " ".join((producto.nombre or "").lower().split()[:6])
+
+        def coincide(token: str) -> bool:
+            # Límite de palabra: "faro" no debe coincidir dentro de otra
+            # palabra; se admite el plural simple.
+            return bool(re.search(rf"\b{re.escape(token)}\w{{0,1}}\b", tipo_pieza))
+
+        especificos = [t for t in tokens if t not in _GENERICOS]
+        if not especificos:
+            return any(coincide(t) for t in tokens)
+
+        # El primer término específico es el tipo de pieza que se pidió
+        # ("faro delantero hyundai santa fe" -> "faro"). Si no aparece, el
+        # producto es de otra pieza aunque coincida el modelo o la marca.
+        return coincide(especificos[0])
+
+    def _extract_function(self, text: str) -> str:
+        """Extraer función del repuesto del texto."""
+        text_lower = text.lower()
+
+        if "luz diurna" in text_lower or "daytime running" in text_lower or "drl" in text_lower:
+            return "Luz Diurna (DRL)"
+        elif "faro" in text_lower or "headlight" in text_lower:
+            return "Faro Delantero"
+        elif "farol" in text_lower or "tail light" in text_lower:
+            return "Farol Trasero"
+        elif "parachoques" in text_lower or "bumper" in text_lower:
+            return "Parachoques"
+        elif "espejo" in text_lower or "mirror" in text_lower:
+            return "Espejo Retrovisor"
+        elif "parabrisas" in text_lower or "windshield" in text_lower:
+            return "Parabrisas"
+
+        return "Repuesto Automotriz"
+
+    def _extract_side(self, text: str, codigo: str) -> str:
+        """Extraer lado del repuesto."""
+        text_lower = text.lower()
+        codigo_lower = codigo.lower()
+
+        # Detectar del código
+        if codigo_lower.endswith(("rh", "r")):
+            return "Derecho"
+        elif codigo_lower.endswith(("lh", "l")):
+            return "Izquierdo"
+
+        # Del texto. Se aceptan las formas masculinas y femeninas ("Faro
+        # Delantero Derecha") y las abreviaturas con límite de palabra, para
+        # que "rh" no case dentro de otra palabra ("Marathi", "Thor"...).
+        if re.search(r"\b(derech[oa]|right|rh|passenger)\b", text_lower):
+            return "Derecho"
+        if re.search(r"\b(izquierd[oa]|left|lh|driver)\b", text_lower):
+            return "Izquierdo"
+
+        return "No especificado"
+
+    def _extract_technology(self, text: str) -> str:
+        """Extraer tecnología del repuesto."""
+        text_lower = text.lower()
+
+        if "led" in text_lower:
+            return "LED"
+        elif "xenon" in text_lower or "xenón" in text_lower:
+            return "Xenón"
+        elif "halogen" in text_lower or "halógeno" in text_lower:
+            return "Halógeno"
+
+        return "No especificada"
+
+    def _extract_compatibility(self, text: str) -> List[str]:
+        """Extraer compatibilidad (marca + modelo + años) del texto."""
+        compatibilities = []
+
+        # Buscar patrones de marca + modelo + año
+        patterns = [
+            r"(Chery|Toyota|Honda|Ford|Chevrolet)\s+([\w\s]+)\s+(20\d{2}(?:\s*[-,]\s*20\d{2})?)",
+            r"(20\d{2})\s+(Chery|Toyota|Honda|Ford|Chevrolet)\s+([\w\s]+)",
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                if len(match) == 3:
+                    if match[0].isdigit():
+                        compat = f"{match[1]} {match[2]} {match[0]}"
+                    else:
+                        compat = f"{match[0]} {match[1]} {match[2]}"
+                    compatibilities.append(compat.strip())
+
+        return list(set(compatibilities)) if compatibilities else ["Verificar con vendedor"]
+
+    def _extract_sibling_component(self, text: str, codigo: str) -> Optional[str]:
+        """Extraer componente hermano (código similar, difiere en el último carácter)."""
+        if len(codigo) <= 1:
+            return None
+
+        codigo_base = codigo[:-1]
+        pattern = rf"{re.escape(codigo_base)}[A-Z0-9]"
+        matches = re.findall(pattern, text, re.IGNORECASE)
+
+        for match in matches:
+            if match.upper() != codigo.upper():
+                return match.upper()
+
+        return None
+
+    @staticmethod
+    def _build_url(url: str, params: Optional[Dict[str, Any]] = None) -> str:
+        if not params:
+            return url
+        sep = "&" if "?" in url else "?"
+        return f"{url}{sep}{urlencode(params)}"
+
+    async def _throttle(self) -> None:
+        now = time.monotonic()
+        wait = max(0.0, self._last_request_at + self.request_delay - now)
+        if wait:
+            await asyncio.sleep(wait)
+        self._last_request_at = time.monotonic()
+
+    async def _get_html(self, url: str, params: Optional[Dict[str, Any]] = None) -> str:
+        last_exc: Optional[Exception] = None
+        for attempt in range(self.retries + 1):
+            await self._throttle()
+            try:
+                return await self._fetch_html_layered(url, params)
+            except Exception as exc:
+                last_exc = exc
+            if attempt < self.retries:
+                await asyncio.sleep((2 ** attempt) + random.uniform(0, 0.5))
+        raise last_exc if last_exc else MaxRetriesError(f"{self.name}: sin respuesta")
+
+    async def _fetch_html_layered(self, url: str,
+                                  params: Optional[Dict[str, Any]] = None) -> str:
+        fetch_order: List[Any] = []
+        if self.use_cloudscraper:
+            fetch_order.append(self._get_html_cloudscraper)
+        if self.use_playwright:
+            fetch_order.append(self._get_html_playwright)
+        if not fetch_order:
+            return await self._get_html_aiohttp(url, params)
+
+        last_exc: Optional[Exception] = None
+        for fetcher in fetch_order:
+            try:
+                return await fetcher(url, params)
+            except Exception as exc:
+                last_exc = exc
+        return await self._get_html_aiohttp(url, params) if last_exc else ""
+
+    async def _get_html_aiohttp(self, url: str,
+                                params: Optional[Dict[str, Any]] = None) -> str:
+        full = self._build_url(url, params)
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+
+        async def _fetch(session: aiohttp.ClientSession) -> str:
+            async with session.get(full, timeout=timeout) as resp:
+                if resp.status in (403, 429):
+                    raise RateLimitedError(f"[{self.name}] bloqueado ({resp.status}) en {url}")
+                if resp.status != 200:
+                    raise MaxRetriesError(f"[{self.name}] status {resp.status} en {url}")
+                return await resp.text()
+
+        if self._session is not None:
+            return await _fetch(self._session)
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            return await _fetch(session)
+
+    async def _get_html_cloudscraper(self, url: str,
+                                     params: Optional[Dict[str, Any]] = None) -> str:
+        import cloudscraper
+
+        full = self._build_url(url, params)
+        if self._cloudscraper_instance is None:
+            self._cloudscraper_instance = cloudscraper.create_scraper()
+        resp = await asyncio.to_thread(
+            self._cloudscraper_instance.get, full,
+            timeout=self.timeout, headers=self.headers,
+        )
+        if resp.status_code in (403, 429):
+            raise RateLimitedError(f"[{self.name}] bloqueado ({resp.status_code}) en {url}")
+        if resp.status_code != 200:
+            raise MaxRetriesError(f"[{self.name}] status {resp.status_code} en {url}")
+        return resp.text
+
+    async def _get_html_playwright(self, url: str,
+                                   params: Optional[Dict[str, Any]] = None) -> str:
+        resultados = await self._get_html_multi([self._build_url(url, params)])
+        return resultados[0] if resultados else ""
+
+    async def _get_html_multi(self, urls: List[str]) -> List[str]:
+        """Descarga varias páginas en paralelo con un único navegador.
+
+        Lanzar un Chromium por URL costaba ~20 s extra en cada consulta; con
+        un solo contexto y varias pestañas el tiempo total es el de la más
+        lenta. Sin Playwright se resuelven en serie con el fetcher normal.
+        """
+        if not urls:
+            return []
+        if not self.use_playwright:
+            return [await self._get_html(u) for u in urls]
+
+        from playwright.async_api import async_playwright
+
+        wait_ms = int(self.timeout * 1000)
+        resultados: List[str] = [""] * len(urls)
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--disable-blink-features=AutomationControlled"],
+            )
+            try:
+                context = await browser.new_context(
+                    user_agent=self.headers["User-Agent"],
+                    locale=self.locale,
+                    viewport=self.viewport,
+                )
+                await context.add_init_script(
+                    "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
+                )
+
+                async def cargar(indice: int, url: str) -> None:
+                    page = await context.new_page()
+                    try:
+                        # domcontentloaded + espera explícita: "networkidle"
+                        # nunca se estabiliza (long-polling de AliExpress/Shopify).
+                        await page.goto(url, timeout=wait_ms, wait_until="domcontentloaded")
+                        if self.wait_for_selector:
+                            try:
+                                await page.wait_for_selector(self.wait_for_selector,
+                                                            timeout=wait_ms)
+                            except Exception:
+                                logger.debug("[%s] selector %r no apareció en %s",
+                                             self.name, self.wait_for_selector, url[:70])
+                        await page.wait_for_timeout(self.settle_ms)
+                        resultados[indice] = await page.content()
+                    except Exception as exc:
+                        logger.warning("[%s] no se pudo cargar %s: %s",
+                                       self.name, url[:80], type(exc).__name__)
+                    finally:
+                        await page.close()
+
+                await asyncio.gather(*(cargar(i, u) for i, u in enumerate(urls)))
+            finally:
+                await browser.close()
+
+        return resultados

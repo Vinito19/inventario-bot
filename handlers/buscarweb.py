@@ -3,20 +3,14 @@
 Callback handler para búsqueda web desde el botón en detalle de repuesto.
 Patrón: buscarweb_CODIGO
 """
-import html
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
 
 import config
 from database import obtener_repuesto, esta_registrado
 from keyboards import botones_volver
-from handlers.utils import edit_mensaje
+from handlers.utils import edit_mensaje, _formatear_resultado, _termino_busqueda_web
 import web_search
-
-
-def _escape(text: str) -> str:
-    """Escapa caracteres HTML para prevenir inyección."""
-    return html.escape(text) if text else ""
 
 
 async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -39,9 +33,10 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Obtener nombre del repuesto de la BD para mejorar búsqueda
     repuesto = obtener_repuesto(codigo)
     nombre = repuesto["nombre"] if repuesto else ""
+    termino = _termino_busqueda_web(repuesto, nombre)
 
     await edit_mensaje(query, f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
-    resultado = await web_search.buscar_repuesto_web(codigo, nombre, user_id=query.from_user.id)
+    resultado = await web_search.buscar_repuesto_web(codigo, termino, user_id=query.from_user.id)
 
     if not resultado:
         await edit_mensaje(
@@ -53,35 +48,13 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return ConversationHandler.END
 
-    # Formatear resultado (inline para evitar duplicar lógica)
-    lines = [
-        f"🌐 <b>BÚSQUEDA WEB: {_escape(resultado['codigo'])}</b>",
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    ]
-    if resultado.get("marca"):
-        lines.append(f"🚗 <b>Marca:</b> {_escape(resultado['marca'])}")
-    if resultado.get("modelo"):
-        lines.append(f"📋 <b>Modelo:</b> {_escape(resultado['modelo'])}")
-    if resultado.get("tipo"):
-        lines.append(f"🔧 <b>Tipo de pieza:</b> {_escape(resultado['tipo'])}")
-    if resultado.get("lado"):
-        lines.append(f"↔️ <b>Lado:</b> {_escape(resultado['lado'])}")
-    if resultado.get("precio_ecuador"):
-        lines.append(f"💰 <b>Precio Ecuador:</b> {_escape(resultado['precio_ecuador'])}")
-
-    if resultado.get("snippets"):
-        lines.append(f"\n📄 <b>Fragmentos encontrados:</b>")
-        for i, s in enumerate(resultado["snippets"], 1):
-            lines.append(f"  {i}. {_escape(s[:150])}...")
-
-    lines.append(f"\n🔗 <b>Fuente:</b> {_escape(resultado['fuente'])}")
-    lines.append(f"⚠️ <i>Información extraída automáticamente, verificar manualmente.</i>")
+    lines = _formatear_resultado(resultado)
 
     botones = InlineKeyboardMarkup([
         [InlineKeyboardButton("🔄 Nueva búsqueda", callback_data=f"buscarweb_{codigo}")],
         [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
     ])
-    await edit_mensaje(query, "\n".join(lines), parse_mode="HTML", reply_markup=botones)
+    await edit_mensaje(query, lines, parse_mode="HTML", reply_markup=botones)
     return ConversationHandler.END
 
 

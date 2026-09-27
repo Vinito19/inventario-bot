@@ -13,6 +13,7 @@ import json
 import asyncio
 import time
 import random
+import logging
 from pathlib import Path
 from urllib.parse import quote_plus
 from typing import Optional, List, Dict, Any
@@ -21,6 +22,9 @@ from collections import defaultdict
 
 import aiohttp
 from bs4 import BeautifulSoup
+
+from scrapers.aggregator import SearchAggregator
+from scrapers.models import Product
 
 # ─── Validación y sanitización de entrada ───────────────────────────────
 CODIGO_PATTERN = re.compile(r'^[a-zA-Z0-9\-\.]{1,50}$')
@@ -299,9 +303,61 @@ async def _buscar_con_reintentos(session: aiohttp.ClientSession, query: str, max
 
 
 # ─── Función principal ────────────────────────────────────────────────
+async def _buscar_en_motores_genericos(codigo: str, nombre: str = "") -> Optional[Dict]:
+    """Fallback: búsqueda genérica en DuckDuckGo/Bing/Brave."""
+    query = f"{codigo} {nombre}".strip()
+    if not query:
+        return None
+
+    all_snippets = []
+    try:
+        timeout = aiohttp.ClientTimeout(total=20)
+        async with aiohttp.ClientSession(timeout=timeout, headers=HEADERS) as session:
+            all_snippets = await _buscar_con_reintentos(session, query)
+    except Exception as e:
+        logging.error("Error en búsqueda genérica: %s", e)
+        return None
+
+    if not all_snippets:
+        return None
+
+    # Deduplicar manteniendo orden
+    seen = set()
+    snippets = []
+    for s in all_snippets:
+        if s not in seen:
+            seen.add(s)
+            snippets.append(s)
+    snippets = snippets[:10]
+
+    full_text = " | ".join(snippets)
+
+    # Extracción
+    marca = _extraer(full_text, PATTERNS["marca"])
+    modelo = _extraer(full_text, PATTERNS["modelo"])
+    lado = _extraer(full_text, PATTERNS["lado"])
+    tipo = _extraer(full_text, PATTERNS["tipo"])
+    precio_ec = _extraer_precio_ecuador(full_text)
+
+    lado_norm = _normalizar_lado(lado) if lado else None
+
+    return {
+        "codigo": codigo,
+        "nombre_busqueda": nombre,
+        "marca": marca,
+        "modelo": modelo,
+        "lado": lado_norm,
+        "tipo": tipo,
+        "precio_ecuador": precio_ec,  # Solo si detecta Ecuador
+        "snippets": snippets[:4],
+        "fuente": "DuckDuckGo + Bing + Brave (scraping)",
+    }
+
+
 async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -> Optional[Dict]:
     """
-    Busca repuesto y retorna dict con: marca, modelo, lado, tipo, precio_ecuador, snippets, fuente.
+    Busca repuesto en sitios ecuatorianos (prioridad) e internacionales (fallback).
+    Retorna dict con resultados de scrapers o, si fallan, búsqueda web genérica.
     """
     # Rate limit por usuario (1 búsqueda = 1 request, no por motor)
     if user_id > 0:
@@ -326,52 +382,34 @@ async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -
     if cached:
         return cached
 
-    # 2. Búsqueda
-    all_snippets = []
+    # 2. Buscar con nuevo sistema de scrapers
     try:
-        timeout = aiohttp.ClientTimeout(total=20)
-        async with aiohttp.ClientSession(timeout=timeout, headers=HEADERS) as session:
-            all_snippets = await _buscar_con_reintentos(session, query)
-    except Exception:
-        return None
+        aggregator = SearchAggregator()
+        resultados = await aggregator.search(codigo, nombre)
 
-    if not all_snippets:
-        return None
+        if resultados["todos"]:
+            # Convertir a formato compatible con el bot
+            resultado = {
+                "codigo": codigo,
+                "nombre_busqueda": nombre,
+                "resultados_ecuador": [p.to_dict() for p in resultados["ecuador"]],
+                "resultados_internacional": [p.to_dict() for p in resultados["internacional"]],
+                "todos_los_resultados": [p.to_dict() for p in resultados["todos"][:10]],
+                "total_ecuador": len(resultados["ecuador"]),
+                "total_internacional": len(resultados["internacional"]),
+                "fuente": "Scrapers especializados (Ecuador + Internacional)",
+            }
 
-    # Deduplicar manteniendo orden
-    seen = set()
-    snippets = []
-    for s in all_snippets:
-        if s not in seen:
-            seen.add(s)
-            snippets.append(s)
-    snippets = snippets[:10]
+            # Guardar en caché
+            CACHE.set(cache_key, resultado)
+            return resultado
+    except Exception as e:
+        logging.error("Error en búsqueda con scrapers: %s", e)
 
-    full_text = " | ".join(snippets)
-
-    # 3. Extracción
-    marca = _extraer(full_text, PATTERNS["marca"])
-    modelo = _extraer(full_text, PATTERNS["modelo"])
-    lado = _extraer(full_text, PATTERNS["lado"])
-    tipo = _extraer(full_text, PATTERNS["tipo"])
-    precio_ec = _extraer_precio_ecuador(full_text)
-
-    lado_norm = _normalizar_lado(lado) if lado else None
-
-    resultado = {
-        "codigo": codigo,
-        "nombre_busqueda": nombre,
-        "marca": marca,
-        "modelo": modelo,
-        "lado": lado_norm,
-        "tipo": tipo,
-        "precio_ecuador": precio_ec,  # Solo si detecta Ecuador
-        "snippets": snippets[:4],
-        "fuente": "DuckDuckGo + Bing + Brave (scraping)",
-    }
-
-    # 4. Guardar caché
-    CACHE.set(cache_key, resultado)
+    # 3. Fallback a búsqueda web genérica si falla
+    resultado = await _buscar_en_motores_genericos(codigo, nombre)
+    if resultado:
+        CACHE.set(cache_key, resultado)
     return resultado
 
 

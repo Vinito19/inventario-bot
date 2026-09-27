@@ -5,7 +5,8 @@ from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler
 
 from database import buscar_repuestos, obtener_repuesto, esta_registrado
 from keyboards import botones_volver, menu_resultados, menu_detalle_repuesto, menu_buscar_modo
-from handlers.utils import finalizar, edit_mensaje, guardar_mensaje
+from handlers.utils import (finalizar, edit_mensaje, guardar_mensaje,
+                             _formatear_resultado, _termino_busqueda_web)
 from handlers.proforma import proforma_callback
 import web_search
 
@@ -149,8 +150,11 @@ async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     codigo = partes[0]
     nombre = partes[1] if len(partes) > 1 else ""
 
+    # Si el código está en la BD, la descripción aporta marca/modelo/año.
+    termino = _termino_busqueda_web(obtener_repuesto(codigo), nombre)
+
     msg = await update.message.reply_text(f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
-    resultado = await web_search.buscar_repuesto_web(codigo, nombre, user_id=update.effective_user.id)
+    resultado = await web_search.buscar_repuesto_web(codigo, termino, user_id=update.effective_user.id)
 
     if not resultado:
         await msg.edit_text(
@@ -162,28 +166,7 @@ async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SEARCH_WEB_INPUT
 
     # Formatear resultado
-    lines = [
-        f"🌐 <b>BÚSQUEDA WEB: {_escape(resultado['codigo'])}</b>",
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    ]
-    if resultado.get("marca"):
-        lines.append(f"🚗 <b>Marca:</b> {_escape(resultado['marca'])}")
-    if resultado.get("modelo"):
-        lines.append(f"📋 <b>Modelo:</b> {_escape(resultado['modelo'])}")
-    if resultado.get("tipo"):
-        lines.append(f"🔧 <b>Tipo de pieza:</b> {_escape(resultado['tipo'])}")
-    if resultado.get("lado"):
-        lines.append(f"↔️ <b>Lado:</b> {_escape(resultado['lado'])}")
-    if resultado.get("precio_ecuador"):
-        lines.append(f"💰 <b>Precio Ecuador:</b> {_escape(resultado['precio_ecuador'])}")
-
-    if resultado.get("snippets"):
-        lines.append(f"\n📄 <b>Fragmentos encontrados:</b>")
-        for i, s in enumerate(resultado["snippets"], 1):
-            lines.append(f"  {i}. {_escape(s[:150])}...")
-
-    lines.append(f"\n🔗 <b>Fuente:</b> {_escape(resultado['fuente'])}")
-    lines.append(f"⚠️ <i>Información extraída automáticamente, verificar manualmente.</i>")
+    lines = _formatear_resultado(resultado)
 
     botones = InlineKeyboardMarkup([
         [InlineKeyboardButton("🔄 Nueva búsqueda web", callback_data="buscar_web")],
@@ -191,7 +174,7 @@ async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
     ])
 
-    await msg.edit_text("\n".join(lines), parse_mode="HTML", reply_markup=botones)
+    await msg.edit_text(lines, parse_mode="HTML", reply_markup=botones)
     return SEARCH_MODE
 
 

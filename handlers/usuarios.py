@@ -174,14 +174,14 @@ async def ver_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📅 Registro: {usuario['fecha']}"
     )
 
-if usuario["user_id"] == user_id_admin:
-            await edit_mensaje(
-                query,
-                texto + "\n\n⚠️ No puedes eliminarte a ti mismo.",
-                reply_markup=botones_volver(),
-            )
-        else:
-            await edit_mensaje(query, texto, reply_markup=botones_detalle_usuario(usuario))
+    if usuario["user_id"] == user_id_admin:
+        await edit_mensaje(
+            query,
+            texto + "\n\n⚠️ No puedes eliminarte a ti mismo.",
+            reply_markup=botones_volver(),
+        )
+    else:
+        await edit_mensaje(query, texto, reply_markup=botones_detalle_usuario(usuario))
 
     return CONFIRMAR_DELETE
 
@@ -241,10 +241,6 @@ async def eliminar_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
     return ConversationHandler.END
-
-        return ConversationHandler.END
-
-    return CONFIRMAR_DELETE
 
 
 async def cancel_usuarios(update: Update, context: ContextTypes.DEFAULT_TYPE):

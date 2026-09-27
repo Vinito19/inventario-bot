@@ -13,3 +13,7 @@ mockup_proforma.*
 proforma_*.pdf
 .pytest_cache/
 pytest.ini
+run_bot.lock
+scrapers/exchange_rates_cache.json
+web_search_cache.json
+test_rate.py
