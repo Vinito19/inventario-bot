@@ -5,6 +5,8 @@ from typing import Dict, List
 
 from scrapers.ecuador.imotriz import ImotrizScraper
 from scrapers.ecuador.mansuera import MansueraScraper
+from scrapers.international.elmridgea import ElmridgeaScraper
+from scrapers.international.kiauto import KiautoScraper
 from scrapers.international.repuestosboston import RepuestosBostonScraper
 from scrapers.models import Product
 
@@ -27,9 +29,12 @@ class SearchAggregator:
         # AliExpress sólo expone tarjetas de recomendación en el HTML (la
         # rejilla real requiere una API mtop firmada por sesión). Incluirlos
         # devolvería precios de productos ajenos al repuesto buscado.
+        # accessauto4x4 descartado: tienda de accesorios 4x4, búsqueda difusa,
+        # sin precios en resultados, no indexa códigos OEM.
         self.international_scrapers = [
             RepuestosBostonScraper(),
-            # Agregar más scrapers internacionales aquí
+            ElmridgeaScraper(),
+            KiautoScraper(),
         ]
 
     async def search(self, codigo: str, nombre: str = "") -> Dict[str, List[Product]]:

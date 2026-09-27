@@ -338,8 +338,11 @@ def test_aggregator_default_scrapers():
     assert len(agg.ecuador_scrapers) >= 1
     assert len(agg.international_scrapers) >= 1
     assert agg.ecuador_scrapers[0].SITE_NAME == "Mansuera"
-    # Sólo RepuestosBoston: responde por HTTP plano y trae precios reales.
-    assert [s.SITE_NAME for s in agg.international_scrapers] == ["repuestosboston"]
+    # Internacionales: RepuestosBoston (Chile/CLP), Elmridgea (Europa/EUR), Kiauto (España/EUR)
+    intl_nombres = [s.SITE_NAME for s in agg.international_scrapers]
+    assert "repuestosboston" in intl_nombres
+    assert "elmridgea" in intl_nombres
+    assert "kiauto" in intl_nombres
 
 
 def test_aggregator_excluye_sitios_no_scrapeables():
