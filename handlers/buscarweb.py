@@ -35,7 +35,7 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     nombre = repuesto["nombre"] if repuesto else ""
     termino = _termino_busqueda_web(repuesto, nombre)
 
-    await edit_mensaje(query, f"🔍 Buscando en internet: <b>{codigo}</b>...", parse_mode="HTML")
+    await edit_mensaje(query, f"🔍 Buscando en internet: <b>{codigo}</b>...")
     resultado = await web_search.buscar_repuesto_web(codigo, termino, user_id=query.from_user.id)
 
     if not resultado:
@@ -43,7 +43,6 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             query,
             f"❌ No se encontró información para <b>{codigo}</b> {nombre or ''}.\n\n"
             "Intenta con otro código o nombre.",
-            parse_mode="HTML",
             reply_markup=botones_volver(),
         )
         return ConversationHandler.END
@@ -54,7 +53,7 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         [InlineKeyboardButton("🔄 Nueva búsqueda", callback_data=f"buscarweb_{codigo}")],
         [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
     ])
-    await edit_mensaje(query, lines, parse_mode="HTML", reply_markup=botones)
+    await edit_mensaje(query, lines, reply_markup=botones)
     return ConversationHandler.END
 
 
