@@ -141,7 +141,7 @@ def _formatear_resultado(r: dict) -> str:
                  f"+ {r.get('total_internacional', 0)} Internacional")
     lines.append("⚠️ <i>Precios convertidos a USD. Verificar disponibilidad con vendedor.</i>")
 
-    return "\n".join(lines)
+    return "\n".join(lines).replace("\r", "")
 
 
 def guardar_mensaje(update_or_msg, context, msg):
