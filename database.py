@@ -3,6 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import config
+from security import encrypt_field, decrypt_field, hash_password
 
 DB_NAME = "inventario.db"
 
@@ -27,9 +28,12 @@ def init_db():
             CREATE TABLE IF NOT EXISTS usuarios (
                 user_id INTEGER PRIMARY KEY,
                 nombre TEXT NOT NULL,
-                rol TEXT DEFAULT 'usuario',
-                activo INTEGER DEFAULT 1,
-                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                username TEXT,
+                password_hash TEXT,
+                rol TEXT DEFAULT 'pendiente',
+                activo INTEGER DEFAULT 0,
+                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS categorias (
@@ -95,8 +99,26 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_cambios_repuesto ON cambios(repuesto_codigo);
         """)
         conn.commit()
+        _migrate_usuarios_schema(conn)
     finally:
         conn.close()
+
+
+def _migrate_usuarios_schema(conn):
+    """Agrega columnas nuevas a la tabla usuarios si no existen."""
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(usuarios)")
+    cols = {row[1] for row in cursor.fetchall()}
+    if "username" not in cols:
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN username TEXT")
+    if "password_hash" not in cols:
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN password_hash TEXT")
+    if "fecha_registro" not in cols:
+        cursor.execute("ALTER TABLE usuarios ADD COLUMN fecha_registro TIMESTAMP")
+        cursor.execute("UPDATE usuarios SET fecha_registro = datetime('now') WHERE fecha_registro IS NULL")
+    if "rol" in cols:
+        cursor.execute("UPDATE usuarios SET rol='pendiente' WHERE rol='usuario' AND activo=0")
+    conn.commit()
 
 
 def registrar_admins(admin_ids):
@@ -108,7 +130,7 @@ def registrar_admins(admin_ids):
                 INSERT INTO usuarios (user_id, nombre, rol, activo)
                 VALUES (?, ?, 'admin', 1)
                 ON CONFLICT(user_id) DO UPDATE SET rol='admin', activo=1
-            """, (admin_id, f"Admin-{admin_id}"))
+            """, (admin_id, encrypt_field(f"Admin-{admin_id}")))
         conn.commit()
     finally:
         conn.close()
@@ -119,20 +141,43 @@ def obtener_usuario(user_id):
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM usuarios WHERE user_id = ?", (user_id,))
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        # Descifrar campos sensibles
+        row = dict(row)
+        if row.get("nombre"):
+            row["nombre"] = decrypt_field(row["nombre"])
+        if row.get("username"):
+            row["username"] = decrypt_field(row["username"])
+        return row
     finally:
         conn.close()
 
 
-def registrar_usuario(user_id, nombre, rol="usuario", activo=1):
+def registrar_usuario(user_id, nombre, username=None, password=None, rol="pendiente", activo=0):
     conn = get_connection()
     try:
         cursor = conn.cursor()
+        password_hash = hash_password(password) if password else None
         cursor.execute("""
-            INSERT INTO usuarios (user_id, nombre, rol, activo)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(user_id) DO UPDATE SET nombre=?, rol=?, activo=?
-        """, (user_id, nombre, rol, activo, nombre, rol, activo))
+            INSERT INTO usuarios (user_id, nombre, username, password_hash, rol, activo)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                nombre=?, username=?, password_hash=?, rol=?, activo=?
+        """, (
+            user_id,
+            encrypt_field(nombre) if nombre else None,
+            encrypt_field(username) if username else None,
+            password_hash,
+            rol,
+            activo,
+            encrypt_field(nombre) if nombre else None,
+            encrypt_field(username) if username else None,
+            password_hash,
+            rol,
+            activo,
+        ))
         conn.commit()
     finally:
         conn.close()

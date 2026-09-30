@@ -18,13 +18,20 @@ except (ValueError, TypeError):
 
 TIMEZONE = os.getenv("TIMEZONE", "America/Guayaquil")
 
+# Clave para cifrado de campos sensibles (Fernet). Generar con: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+
 
 def ahora():
     """Fecha y hora actual en la zona horaria configurada (Ecuador, UTC-5)."""
     return datetime.now(ZoneInfo(TIMEZONE))
+
 
 if not BOT_TOKEN:
     raise ValueError("Falta BOT_TOKEN en el archivo .env")
 
 if not ADMIN_IDS:
     print("ADVERTENCIA: No hay ADMIN_IDS configurados. Nadie podra administrar el bot.")
+
+if not ENCRYPTION_KEY:
+    print("ADVERTENCIA: ENCRYPTION_KEY no configurada. El cifrado de campos sensibles no funcionara.")
