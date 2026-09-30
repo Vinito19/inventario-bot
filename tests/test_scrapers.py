@@ -842,6 +842,19 @@ def test_filtro_relevancia_ignora_palabras_genericas():
         _prod("Guardafango Delantero Izquierdo Original Hyundai"), consulta)
 
 
+def test_filtro_relevancia_considera_el_tipo_de_pieza_aun_corto():
+    """'DRL' (3 letras) es el tipo de pieza y no debe descartarse.
+
+    Con el filtro anterior 'drl' se caía por tener menos de 4 caracteres y el
+    primer término específico quedaba siendo 'peugeot' (la marca): cualquier
+    repuesto de Peugeot pasaba aunque no fuera un DRL.
+    """
+    s = _dummy_scraper()
+    consulta = "DRL Peugeot 2008"
+    assert s._es_relevante(_prod("Luz Diurna DRL Peugeot 2008 2014"), consulta)
+    assert not s._es_relevante(_prod("Refuerzo Delantero Peugeot 2008"), consulta)
+
+
 def test_filtro_relevancia_acepta_codigo_oem_en_la_url():
     """El código OEM suele estar en la URL del producto aunque no en el nombre."""
     s = _dummy_scraper()
@@ -1173,9 +1186,18 @@ class TestMansueraTarjetaReal:
         """$ 72.542 son 72,54 dólares: el punto no es separador de miles."""
         s = self._s()
         p = s._parse(MANSUERA_TARJETA_REAL)[0]
-        assert p.precio_usd == 72.542
-        assert p.precio_original == 72.542
+        assert p.precio_usd == 72.54
+        assert p.precio_original == 72.54
         assert p.moneda_original == "USD"
+
+    def test_precio_sin_ruido_de_flotantes(self):
+        """El JSON del carrito a veces trae ruido binario (54.015499999999996)."""
+        s = self._s()
+        p = s._construir(codigo="X", nombre_texto="Faro", precio_texto="",
+                         url_producto="/x", precio_monto=54.015499999999996)
+        assert p is not None
+        assert p.precio_usd == 54.02
+        assert p.precio_original == 54.02
 
     def test_ignora_los_enlaces_de_categoria(self):
         """`/productos/repuestos/...` es navegación, no un producto."""

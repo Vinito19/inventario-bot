@@ -188,6 +188,11 @@ class MansueraScraper(BaseScraper):
             info = normalize_price(precio_texto or "")
             monto = info.amount if info is not None else 0.0
 
+        # El JSON del carrito a veces trae ruido binario ("54.015499999999996"):
+        # el precio en USD lleva 2 decimales, así que se limpia aquí para que
+        # no se guarde ni se exporte un float sucio.
+        monto = round(monto, 2)
+
         if monto <= 0:
             logger.debug("[mansuera] precio no parseable: %r", precio_texto)
             return None

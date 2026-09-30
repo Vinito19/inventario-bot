@@ -318,8 +318,11 @@ class BaseScraper(ABC):
         if len(codigo_plano) >= 6 and codigo_plano in objetivo_plano:
             return True
 
+        # 3 letras basta: "drl", "led", "abs" son el tipo de pieza y, si se
+        # descartan, el primer término específico queda siendo la marca y el
+        # filtro acepta cualquier repuesto de esa marca.
         tokens = [t for t in re.split(r"[^a-z0-9]+", consulta)
-                  if len(t) >= 4 and t not in _STOPWORDS]
+                  if len(t) >= 3 and t not in _STOPWORDS]
         if not tokens:
             # La consulta es sólo un código ("225.429-02"). Los buscadores
             # difusos devuelven piezas sin relación (el código se parte en
