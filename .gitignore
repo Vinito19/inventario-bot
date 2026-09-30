@@ -1,5 +1,6 @@
 .env
 inventario.db
+database.db
 __pycache__/
 *.pyc
 *.pyo

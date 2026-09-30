@@ -9,7 +9,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
 
 HORA_BACKUP = os.getenv("HORA_BACKUP", "00:00")
-BACKUP_HORA, BACKUP_MINUTO = (int(x) for x in HORA_BACKUP.split(":"))
+try:
+    BACKUP_HORA, BACKUP_MINUTO = (int(x) for x in HORA_BACKUP.split(":"))
+    if not (0 <= BACKUP_HORA <= 23 and 0 <= BACKUP_MINUTO <= 59):
+        raise ValueError
+except (ValueError, TypeError):
+    raise ValueError(f"HORA_BACKUP inválida ('{HORA_BACKUP}'): usa formato HH:MM, p. ej. 03:00")
 
 TIMEZONE = os.getenv("TIMEZONE", "America/Guayaquil")
 

@@ -247,7 +247,7 @@ def buscar_repuestos(termino):
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        termino_escapado = termino.replace("%", "\\%").replace("_", "\\_")
+        termino_escapado = termino.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         busqueda = f"%{termino_escapado}%"
         cursor.execute("""
             SELECT r.*, c.nombre as categoria_nombre
@@ -335,6 +335,8 @@ def editar_repuesto(codigo, campo, valor):
 
 
 def editar_repuesto_fotos(codigo, file_ids):
+    if len(file_ids) < 4:
+        raise ValueError(f"Se esperaban 4 file_ids, se recibieron {len(file_ids)}")
     conn = get_connection()
     try:
         cursor = conn.cursor()

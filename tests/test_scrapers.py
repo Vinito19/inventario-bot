@@ -323,17 +323,6 @@ def test_product_fecha_automatica():
 
 
 def test_aggregator_default_scrapers():
-    agg = Aggregator()
-    nombres = [s.name for s in agg.scrapers]
-    assert "mansuera" in nombres
-    assert "imotriz" in nombres
-    assert "autopartsonline" in nombres
-    assert "aliexpress" in nombres
-    assert "alibaba" in nombres
-    assert "repuestosboston" in nombres
-
-
-def test_aggregator_default_scrapers():
     agg = SearchAggregator()
     assert len(agg.ecuador_scrapers) >= 1
     assert len(agg.international_scrapers) >= 1

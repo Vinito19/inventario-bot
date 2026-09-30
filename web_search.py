@@ -17,14 +17,13 @@ import logging
 from pathlib import Path
 from urllib.parse import quote_plus
 from typing import Optional, List, Dict, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from collections import defaultdict
 
 import aiohttp
 from bs4 import BeautifulSoup
 
 from scrapers.aggregator import SearchAggregator
-from scrapers.models import Product
 
 # ─── Validación y sanitización de entrada ───────────────────────────────
 CODIGO_PATTERN = re.compile(r'^[a-zA-Z0-9\-\.]{1,50}$')

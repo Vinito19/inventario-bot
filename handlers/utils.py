@@ -149,8 +149,16 @@ def guardar_mensaje(update_or_msg, context, msg):
         context.user_data.setdefault("msgs", []).append(msg.message_id)
 
 
-async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE, chat_id=None):
+async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE, chat_id=None, excepto=None):
+    """Borra los mensajes temporales guardados.
+
+    `excepto` permite conservar un mensaje (p. ej. el que se va a editar
+    justo después): sin esto, borrar la lista incluiría el propio mensaje
+    y el `edit_mensaje` posterior fallaría con "message to edit not found".
+    """
     ids = context.user_data.pop("msgs", [])
+    if excepto is not None and excepto in ids:
+        ids.remove(excepto)
     cid = chat_id or getattr(context, "_chat_id", None)
     if not cid:
         return
@@ -174,11 +182,26 @@ async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE, chat_id=None):
 
 
 async def edit_mensaje(query, texto, reply_markup=None):
+    """Edita el mensaje usando HTML (el bot formatea con <b>, <i>, <a>).
+
+    Se intenta HTML y, si el texto trae un carácter que rompe el parser
+    (p. ej. un '<' suelto de un dato no escapado), se reintenta en texto
+    plano para no perder el mensaje.
+    """
     if query.message is None:
         return
-    if query.message.photo:
-        return await query.edit_message_caption(caption=texto, reply_markup=reply_markup)
-    return await query.edit_message_text(texto, reply_markup=reply_markup)
+    es_foto = bool(query.message.photo)
+    try:
+        if es_foto:
+            return await query.edit_message_caption(
+                caption=texto, reply_markup=reply_markup, parse_mode="HTML")
+        return await query.edit_message_text(
+            text=texto, reply_markup=reply_markup, parse_mode="HTML")
+    except Exception:
+        # Fallback: sin parse_mode, por si el texto no es HTML válido.
+        if es_foto:
+            return await query.edit_message_caption(caption=texto, reply_markup=reply_markup)
+        return await query.edit_message_text(text=texto, reply_markup=reply_markup)
 
 
 async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):

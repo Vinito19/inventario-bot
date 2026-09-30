@@ -3,10 +3,11 @@
 Callback handler para búsqueda web desde el botón en detalle de repuesto.
 Patrón: buscarweb_CODIGO
 """
+import html
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
 
-import config
 from database import obtener_repuesto, esta_registrado
 from keyboards import botones_volver
 from handlers.utils import edit_mensaje, _formatear_resultado, _termino_busqueda_web
@@ -35,13 +36,16 @@ async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     nombre = repuesto["nombre"] if repuesto else ""
     termino = _termino_busqueda_web(repuesto, nombre)
 
-    await edit_mensaje(query, f"🔍 Buscando en internet: <b>{codigo}</b>...")
+    codigo_esc = html.escape(codigo)
+    nombre_esc = html.escape(nombre or "")
+
+    await edit_mensaje(query, f"🔍 Buscando en internet: <b>{codigo_esc}</b>...")
     resultado = await web_search.buscar_repuesto_web(codigo, termino, user_id=query.from_user.id)
 
     if not resultado:
         await edit_mensaje(
             query,
-            f"❌ No se encontró información para <b>{codigo}</b> {nombre or ''}.\n\n"
+            f"❌ No se encontró información para <b>{codigo_esc}</b> {nombre_esc}.\n\n"
             "Intenta con otro código o nombre.",
             reply_markup=botones_volver(),
         )

@@ -152,8 +152,8 @@ class Query:
     async def answer(self, *a, **kw):
         self.respondidas += 1
 
-    async def edit_message_text(self, texto=None, reply_markup=None, **kw):
-        m = _MsgSalida(texto or "", self.message.chat_id)
+    async def edit_message_text(self, text=None, reply_markup=None, **kw):
+        m = _MsgSalida(text or "", self.message.chat_id)
         if self.registro is not None:
             self.registro.append(m)
         return m

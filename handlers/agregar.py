@@ -21,7 +21,6 @@ MAX_CODIGO_LEN = 50
 MAX_NOMBRE_LEN = 100
 MAX_DESC_LEN = 500
 MAX_UBICACION_LEN = 100
-MAX_CODIGO_BUSQUEDA_LEN = 100
 
 
 import re
@@ -81,16 +80,6 @@ def validar_descripcion(texto: str) -> str:
 
 def validar_ubicacion(texto: str) -> str:
     return validar_texto(texto, MAX_UBICACION_LEN, "Ubicación")
-
-
-def validar_codigo_busqueda(texto: str) -> str:
-    """Valida código para búsqueda (más permisivo)."""
-    texto = texto.strip()
-    if not texto:
-        raise ValueError("Código de búsqueda no puede estar vacío")
-    if len(texto) > MAX_CODIGO_BUSQUEDA_LEN:
-        raise ValueError(f"Código de búsqueda demasiado largo (máx {MAX_CODIGO_BUSQUEDA_LEN} caracteres)")
-    return texto
 
 
 def obtener_file_id(update: Update):

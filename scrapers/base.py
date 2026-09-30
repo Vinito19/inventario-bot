@@ -10,7 +10,6 @@ from urllib.parse import urlencode
 
 import aiohttp
 
-from scrapers.currency import PriceInfo
 from scrapers.models import Product
 
 logger = logging.getLogger(__name__)

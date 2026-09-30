@@ -199,6 +199,11 @@ async def confirmar_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return CONFIRMAR_DELETE
 
     if data.startswith("confirmar_eliminar_cat_"):
+        user_id = query.from_user.id
+        if not es_admin(user_id):
+            await edit_mensaje(query, "❌ Solo el administrador puede eliminar categorías.")
+            return ConversationHandler.END
+
         cat_id = int(data.replace("confirmar_eliminar_cat_", ""))
         try:
             existente = obtener_categorias()

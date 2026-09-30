@@ -130,7 +130,7 @@ async def exportar_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(query, "Solo el administrador puede exportar a Excel.")
         return
 
-    await borrar_mensajes(context, chat_id=user_id)
+    await borrar_mensajes(context, chat_id=user_id, excepto=query.message.message_id)
     await edit_mensaje(query, "Generando archivo Excel...")
 
     try:
@@ -161,6 +161,11 @@ async def exportar_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ver_stock_cero(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
+    user_id = query.from_user.id
+    if not esta_registrado(user_id):
+        await edit_mensaje(query, "❌ No tienes acceso al bot.")
+        return
 
     from database import obtener_stock_cero
     stock_cero = obtener_stock_cero()
@@ -233,7 +238,7 @@ async def exportar_ventas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(query, "Solo el administrador puede exportar ventas.")
         return
 
-    await borrar_mensajes(context, chat_id=user_id)
+    await borrar_mensajes(context, chat_id=user_id, excepto=query.message.message_id)
     await edit_mensaje(query, "Generando archivo de ventas...")
 
     try:
@@ -305,7 +310,7 @@ async def exportar_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(query, "❌ Solo el administrador puede exportar cambios.")
         return
 
-    await borrar_mensajes(context, chat_id=user_id)
+    await borrar_mensajes(context, chat_id=user_id, excepto=query.message.message_id)
     await edit_mensaje(query, "⏳ Generando archivo de cambios...")
 
     try:
@@ -400,11 +405,13 @@ async def ventas_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if ventas:
         texto += "📋 Ventas:\n"
-        for v in ventas:
+        for v in ventas[:15]:
             texto += (
                 f"• {v['fecha'][:16]} | {v['codigo']} - {v['nombre']}\n"
                 f"  {v['cantidad']} und × ${v['precio_unitario']:.2f} × subtotal ${v['subtotal']:.2f} × {v['usuario_nombre']}\n"
             )
+        if len(ventas) > 15:
+            texto += f"\n... y {len(ventas) - 15} más\n"
 
     texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -482,12 +489,14 @@ async def cambios_mes_recibido(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if cambios:
         texto += "📋 Cambios:\n"
-        for c in cambios:
+        for c in cambios[:15]:
             texto += (
                 f"• {c['fecha'][:16]} | {c['repuesto_codigo']}\n"
                 f"  {c['campo']}: '{c['valor_anterior']}' → '{c['valor_nuevo']}'\n"
                 f"  👤 {c['usuario_nombre']}\n"
             )
+        if len(cambios) > 15:
+            texto += f"\n... y {len(cambios) - 15} más\n"
 
     texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -525,7 +534,7 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
         fecha_fin = f"{anio:04d}-{mes+1:02d}-01"
     fecha_inicio = f"{anio:04d}-{mes:02d}-01"
 
-    await borrar_mensajes(context, chat_id=user_id)
+    await borrar_mensajes(context, chat_id=user_id, excepto=query.message.message_id)
     await edit_mensaje(query, "Generando archivo...")
 
     try:
@@ -607,7 +616,7 @@ async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYP
         fecha_fin = f"{anio:04d}-{mes+1:02d}-01"
     fecha_inicio = f"{anio:04d}-{mes:02d}-01"
 
-    await borrar_mensajes(context, chat_id=user_id)
+    await borrar_mensajes(context, chat_id=user_id, excepto=query.message.message_id)
     await edit_mensaje(query, "Generando archivo...")
 
     try:

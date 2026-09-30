@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
-from database import buscar_repuestos, obtener_repuesto, editar_repuesto, editar_repuesto_fotos, esta_registrado, agregar_categoria, obtener_categoria_por_nombre, obtener_categorias, registrar_cambio
+from database import buscar_repuestos, obtener_repuesto, editar_repuesto, editar_repuesto_fotos, esta_registrado, agregar_categoria, obtener_categoria_por_nombre, obtener_categorias, registrar_cambio, es_admin
 from keyboards import menu_editar, menu_cantidad, menu_confirmar, botones_volver, menu_categorias
 from handlers.utils import finalizar, edit_mensaje
 
@@ -402,7 +402,6 @@ async def cancel_editar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def nueva_categoria_nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    from database import es_admin
     if not es_admin(user_id):
         categorias = obtener_categorias()
         await update.message.reply_text(

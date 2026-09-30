@@ -77,32 +77,3 @@ def validar_callback_token(data: str, expected_action: str) -> int | None:
         return None
     
     return user_id
-
-
-def generar_callback_token_simple(action: str, user_id: int) -> str:
-    """Alias para compatibilidad: generar_callback_token(user_id, action)"""
-    return generar_callback_token(user_id, action)
-
-
-# Mapeo de acciones a sus prefijos para validación
-CALLBACK_ACTIONS = {
-    "aprobar": "aprobar",
-    "rechazar": "rechazar",
-    "eliminar_usuario": "eliminar_usuario",
-    "ver_user": "ver_user",
-    "cambiar_estado": "cambiar_estado",
-    "cambiar_rol": "cambiar_rol",
-    "agregar_usuario": "agregar_usuario",
-}
-
-
-def validar_callback_generico(data: str) -> tuple[str, int] | None:
-    """
-    Valida cualquier callback firmado y retorna (action, user_id).
-    Retorna None si es inválido.
-    """
-    for action in CALLBACK_ACTIONS.values():
-        user_id = validar_callback_token(data, action)
-        if user_id is not None:
-            return action, user_id
-    return None

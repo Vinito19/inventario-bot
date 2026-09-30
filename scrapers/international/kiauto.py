@@ -22,7 +22,6 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
-from scrapers.currency import normalize_price, to_usd
 from scrapers.base import BaseScraper
 from scrapers.models import Product
 

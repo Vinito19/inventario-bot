@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 import config
 from database import init_db, registrar_admins
 
-from telegram.ext import Application, CallbackQueryHandler, Defaults
+from telegram.ext import Application, Defaults
 from telegram.error import NetworkError
 
 from backup import enviar_backup
@@ -88,6 +88,19 @@ async def error_handler(update, context):
         pass
 
 
+async def notificar_inicio(app):
+    """Avisa a los administradores que el bot (re)arrancó."""
+    for admin_id in config.ADMIN_IDS:
+        try:
+            await app.bot.send_message(
+                admin_id,
+                f"🟢 <b>Bot iniciado</b>\n\nHora: {config.ahora().strftime('%H:%M:%S')}",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+
 def main():
     init_db()
     registrar_admins(config.ADMIN_IDS)
@@ -100,6 +113,7 @@ def main():
         .write_timeout(60)
         .connect_timeout(15)
         .defaults(Defaults(tzinfo=ZoneInfo(config.TIMEZONE)))
+        .post_init(notificar_inicio)
         .build()
     )
 
