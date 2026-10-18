@@ -73,7 +73,6 @@ async def callback_categorias(update: Update, context: ContextTypes.DEFAULT_TYPE
         await edit_mensaje(query, "❌ No tienes acceso al bot.")
         return ConversationHandler.END
 
-    # Manejar paginación
     data = query.data
     page = 0
     if data.startswith("eliminar_cat_page_"):
@@ -107,7 +106,7 @@ async def callback_categorias(update: Update, context: ContextTypes.DEFAULT_TYPE
     await edit_mensaje(
         query,
         texto,
-        reply_markup=menu_categorias(categorias, puede_agregar=True, page=0, callback_prefix="eliminar_cat", agregar_callback="nueva_categoria"),
+        reply_markup=menu_categorias(categorias, puede_agregar=True, page=page, callback_prefix="eliminar_cat", agregar_callback="nueva_categoria"),
     )
     return CONFIRMAR_DELETE
 
