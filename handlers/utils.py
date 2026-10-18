@@ -219,7 +219,8 @@ async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     usuario = obtener_usuario(user_id)
 
-    if query.data == "inicio":
+    # Tanto "inicio" como "cancelar" vuelven al menú principal
+    if query.data in ("inicio", "cancelar"):
         if usuario and usuario["rol"] == "admin" and usuario["activo"] == 1:
             await context.bot.send_message(chat_id=chat_id, text="👑 Panel de administrador:", reply_markup=menu_admin())
         elif usuario and usuario["activo"] == 1:
