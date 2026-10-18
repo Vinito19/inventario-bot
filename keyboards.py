@@ -29,8 +29,17 @@ def menu_usuario():
     return InlineKeyboardMarkup(keyboard)
 
 
-def menu_categorias(categorias, puede_agregar=True, page=0, per_page=10):
-    """Teclado paginado de categorías. 10 por página."""
+def menu_categorias(categorias, puede_agregar=True, page=0, per_page=10, callback_prefix="cat", agregar_callback="agregar_categoria"):
+    """Teclado paginado de categorías. 10 por página.
+
+    Args:
+        categorias: Lista de dicts con 'id' y 'nombre'
+        puede_agregar: Si mostrar botón "Agregar categoría"
+        page: Página actual (0-indexed)
+        per_page: Items por página
+        callback_prefix: Prefijo para callbacks de categoría (ej: "cat" -> "cat_123")
+        agregar_callback: Callback para botón "Agregar categoría" (default: "agregar_categoria")
+    """
     total = len(categorias)
     start = page * per_page
     end = min(start + per_page, total)
@@ -38,19 +47,19 @@ def menu_categorias(categorias, puede_agregar=True, page=0, per_page=10):
 
     keyboard = []
     for cat in page_cats:
-        keyboard.append([InlineKeyboardButton(f"📂 {cat['nombre']}", callback_data=f"cat_{cat['id']}")])
+        keyboard.append([InlineKeyboardButton(f"📂 {cat['nombre']}", callback_data=f"{callback_prefix}_{cat['id']}")])
 
     # Navegación
     nav_row = []
     if page > 0:
-        nav_row.append(InlineKeyboardButton("⬅️ Anterior", callback_data=f"cat_page_{page - 1}"))
+        nav_row.append(InlineKeyboardButton("⬅️ Anterior", callback_data=f"{callback_prefix}_page_{page - 1}"))
     if end < total:
-        nav_row.append(InlineKeyboardButton("Siguiente ➡️", callback_data=f"cat_page_{page + 1}"))
+        nav_row.append(InlineKeyboardButton("Siguiente ➡️", callback_data=f"{callback_prefix}_page_{page + 1}"))
     if nav_row:
         keyboard.append(nav_row)
 
     if puede_agregar:
-        keyboard.append([InlineKeyboardButton("➕ Agregar categoría", callback_data="agregar_categoria")])
+        keyboard.append([InlineKeyboardButton("➕ Agregar categoría", callback_data=agregar_callback)])
     keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")])
     return InlineKeyboardMarkup(keyboard)
 

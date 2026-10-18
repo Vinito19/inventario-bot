@@ -9,7 +9,7 @@ from database import (
     esta_registrado,
     es_admin,
 )
-from keyboards import botones_volver
+from keyboards import menu_categorias, botones_volver
 from handlers.utils import finalizar, edit_mensaje
 
 ADD_CATEGORY, CONFIRMAR_DELETE = range(2)
@@ -73,6 +73,15 @@ async def callback_categorias(update: Update, context: ContextTypes.DEFAULT_TYPE
         await edit_mensaje(query, "❌ No tienes acceso al bot.")
         return ConversationHandler.END
 
+    # Manejar paginación
+    data = query.data
+    page = 0
+    if data.startswith("eliminar_cat_page_"):
+        try:
+            page = int(data.replace("eliminar_cat_page_", ""))
+        except ValueError:
+            page = 0
+
     try:
         categorias = obtener_categorias()
     except Exception as e:
@@ -94,25 +103,12 @@ async def callback_categorias(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     texto = "📂 CATEGORÍAS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
-    for i, cat in enumerate(categorias, 1):
-        texto += f"{i}. {cat['nombre']}\n"
-
-    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    keyboard = [
-        [InlineKeyboardButton("➕ Agregar categoría", callback_data="nueva_categoria")],
-    ]
-    for cat in categorias:
-        keyboard.append([
-            InlineKeyboardButton(
-                f"🗑️ {cat['nombre']}",
-                callback_data=f"eliminar_cat_{cat['id']}",
-            ),
-        ])
-    keyboard.append([InlineKeyboardButton("❌ Volver", callback_data="inicio")])
-
-    await edit_mensaje(query, texto, reply_markup=InlineKeyboardMarkup(keyboard))
+    # Usar menu_categorias paginado con callback_prefix="eliminar_cat" y agregar_callback="nueva_categoria"
+    await edit_mensaje(
+        query,
+        texto,
+        reply_markup=menu_categorias(categorias, puede_agregar=True, page=0, callback_prefix="eliminar_cat", agregar_callback="nueva_categoria"),
+    )
     return CONFIRMAR_DELETE
 
 
@@ -158,6 +154,14 @@ async def confirmar_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "categorias":
         return await callback_categorias(update, context)
+
+    # Paginación
+    if data.startswith("eliminar_cat_page_"):
+        try:
+            page = int(data.replace("eliminar_cat_page_", ""))
+        except ValueError:
+            page = 0
+        return await callback_categorias(update, context)  # callback_categorias maneja la página
 
     await query.answer()
 
@@ -245,7 +249,7 @@ categorias_handler = ConversationHandler(
         CONFIRMAR_DELETE: [
             CallbackQueryHandler(
                 confirmar_delete,
-                pattern="^(inicio|nueva_categoria|eliminar_cat_|confirmar_eliminar_cat_|categorias)",
+                pattern="^(inicio|nueva_categoria|eliminar_cat_[0-9]+|confirmar_eliminar_cat_[0-9]+|eliminar_cat_page_[0-9]+|categorias)",
             )
         ],
     },
