@@ -169,12 +169,15 @@ async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE, chat_id=None, exce
             pass
 
 
-async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE, chat_id=None):
+async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE, chat_id=None, except_message_id=None):
+    """Elimina mensajes de fotos, opcionalmente excepto uno (el del callback activo)."""
     ids = context.user_data.pop("photo_msg_ids", [])
     cid = chat_id or getattr(context, "_chat_id", None)
     if not cid:
         return
     for mid in ids:
+        if except_message_id and mid == except_message_id:
+            continue
         try:
             await context.bot.delete_message(chat_id=cid, message_id=mid)
         except Exception:
@@ -209,7 +212,8 @@ async def finalizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     chat_id = query.message.chat_id
-    await eliminar_fotos(context, chat_id)
+    msg_id = getattr(query.message, "message_id", None)
+    await eliminar_fotos(context, chat_id, except_message_id=msg_id)
     await borrar_mensajes(context, chat_id)
 
     user_id = query.from_user.id

@@ -573,16 +573,17 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 categoria_id=ud["categoria_id"],
                 ubicacion=ud["ubicacion"],
             )
-            await eliminar_fotos(context, query.message.chat_id)
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=(
-                    "✅ Repuesto registrado correctamente!\n\n"
-                    f"🏷️ Código: {ud['codigo']}\n"
-                    f"📝 Nombre: {ud['nombre']}\n"
-                    f"📦 Cantidad: {ud['cantidad']}\n"
-                    f"💰 Precio: ${ud['precio']:.2f}"
-                ),
+            # Eliminar fotos EXCEPTO la del callback (para poder editarla)
+            msg_id = getattr(query.message, "message_id", None)
+            await eliminar_fotos(context, query.message.chat_id, except_message_id=msg_id)
+            # Editar el mensaje original (caption si es foto, texto si no) en lugar de enviar nuevo
+            await edit_mensaje(
+                query,
+                "✅ Repuesto registrado correctamente!\n\n"
+                f"🏷️ Código: {ud['codigo']}\n"
+                f"📝 Nombre: {ud['nombre']}\n"
+                f"📦 Cantidad: {ud['cantidad']}\n"
+                f"💰 Precio: ${ud['precio']:.2f}",
                 reply_markup=botones_volver(),
             )
         except Exception as e:
