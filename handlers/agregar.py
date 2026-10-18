@@ -621,7 +621,7 @@ agregar_handler = ConversationHandler(
     ],
     states={
         SELECT_CATEGORY: [
-            CallbackQueryHandler(select_category, pattern="^(cat_[0-9]+|cancelar|agregar_categoria)$"),
+            CallbackQueryHandler(select_category, pattern="^(cat_[0-9]+|cat_page_[0-9]+|cancelar|agregar_categoria)$"),
             MessageHandler(filters.TEXT & ~filters.COMMAND, nuevo_nombre_categoria),
         ],
         PHOTO_1: [
