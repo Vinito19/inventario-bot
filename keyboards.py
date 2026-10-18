@@ -29,10 +29,26 @@ def menu_usuario():
     return InlineKeyboardMarkup(keyboard)
 
 
-def menu_categorias(categorias, puede_agregar=True):
+def menu_categorias(categorias, puede_agregar=True, page=0, per_page=10):
+    """Teclado paginado de categorías. 10 por página."""
+    total = len(categorias)
+    start = page * per_page
+    end = min(start + per_page, total)
+    page_cats = categorias[start:end]
+
     keyboard = []
-    for cat in categorias:
+    for cat in page_cats:
         keyboard.append([InlineKeyboardButton(f"📂 {cat['nombre']}", callback_data=f"cat_{cat['id']}")])
+
+    # Navegación
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Anterior", callback_data=f"cat_page_{page - 1}"))
+    if end < total:
+        nav_row.append(InlineKeyboardButton("Siguiente ➡️", callback_data=f"cat_page_{page + 1}"))
+    if nav_row:
+        keyboard.append(nav_row)
+
     if puede_agregar:
         keyboard.append([InlineKeyboardButton("➕ Agregar categoría", callback_data="agregar_categoria")])
     keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")])

@@ -114,7 +114,7 @@ async def start_agregar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "📦 AGREGAR NUEVO REPUESTO\n\n"
         "Selecciona la categoría del repuesto:",
-        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id)),
+        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id), page=0),
     )
     return SELECT_CATEGORY
 
@@ -141,7 +141,7 @@ async def callback_agregar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query,
         "📦 AGREGAR NUEVO REPUESTO\n\n"
         "Selecciona la categoría del repuesto:",
-        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id)),
+        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id), page=0),
     )
     return SELECT_CATEGORY
 
@@ -163,18 +163,33 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return SELECT_CATEGORY
 
+    # Paginación de categorías
+    if data.startswith("cat_page_"):
+        try:
+            page = int(data.replace("cat_page_", ""))
+        except ValueError:
+            page = 0
+        categorias = obtener_categorias()
+        admin = es_admin(query.from_user.id)
+        await edit_mensaje(
+            query,
+            "📦 AGREGAR NUEVO REPUESTO\n\nSelecciona la categoría del repuesto:",
+            reply_markup=menu_categorias(categorias, puede_agregar=admin, page=page),
+        )
+        return SELECT_CATEGORY
+
     if data.startswith("cat_"):
         categorias = obtener_categorias()
         admin = es_admin(query.from_user.id)
         try:
             cat_id = int(data.replace("cat_", ""))
         except ValueError:
-            await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin))
+            await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin, page=0))
             return SELECT_CATEGORY
         
         # Validar que la categoría existe en BD
         if not any(c["id"] == cat_id for c in categorias):
-            await edit_mensaje(query, "⚠️ Categoría inválida.", reply_markup=menu_categorias(categorias, puede_agregar=admin))
+            await edit_mensaje(query, "⚠️ Categoría inválida.", reply_markup=menu_categorias(categorias, puede_agregar=admin, page=0))
             return SELECT_CATEGORY
         
         context.user_data["categoria_id"] = cat_id
@@ -190,7 +205,7 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     categorias = obtener_categorias()
     admin = es_admin(query.from_user.id)
-    await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin))
+    await edit_mensaje(query, "⚠️ Opción no válida. Intenta de nuevo:", reply_markup=menu_categorias(categorias, puede_agregar=admin, page=0))
     return SELECT_CATEGORY
 
 
@@ -200,7 +215,7 @@ async def nuevo_nombre_categoria(update: Update, context: ContextTypes.DEFAULT_T
         categorias = obtener_categorias()
         await update.message.reply_text(
             "❌ Solo el administrador puede agregar categorías.",
-            reply_markup=menu_categorias(categorias) if categorias else botones_volver(),
+            reply_markup=menu_categorias(categorias, page=0) if categorias else botones_volver(),
         )
         return SELECT_CATEGORY
 
@@ -221,7 +236,7 @@ async def nuevo_nombre_categoria(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text(
         f"✅ Categoría '{nombre}' creada correctamente.\n\n"
         f"Selecciona la categoría del repuesto:",
-        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id)),
+        reply_markup=menu_categorias(categorias, puede_agregar=es_admin(user_id), page=0),
     )
     return SELECT_CATEGORY
 

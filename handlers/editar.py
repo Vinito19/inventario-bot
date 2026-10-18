@@ -173,7 +173,7 @@ async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(
             query,
             "📂 Selecciona la nueva categoría:",
-            reply_markup=menu_categorias(categorias, puede_agregar=es_admin(query.from_user.id)),
+            reply_markup=menu_categorias(categorias, puede_agregar=es_admin(query.from_user.id), page=0),
         )
         return EDIT_VALUE
 
@@ -406,7 +406,7 @@ async def nueva_categoria_nombre(update: Update, context: ContextTypes.DEFAULT_T
         categorias = obtener_categorias()
         await update.message.reply_text(
             "❌ Solo el administrador puede agregar categorías.",
-            reply_markup=menu_categorias(categorias) if categorias else botones_volver(),
+            reply_markup=menu_categorias(categorias, page=0) if categorias else botones_volver(),
         )
         return EDIT_VALUE
 
