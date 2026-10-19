@@ -289,7 +289,7 @@ async def _buscar_con_reintentos(session: aiohttp.ClientSession, query: str, max
                 )
 
             if intento < max_intentos - 1:
-                wait = (2 ** intento) + random.uniform(0, 0.5)
+                wait = (2 ** intento) + random.uniform(0, 0.5)  # nosec B311 - jitter de reintento, no criptografía
                 await asyncio.sleep(wait)
 
     return todos_snippets

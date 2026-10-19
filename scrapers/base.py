@@ -527,7 +527,7 @@ class BaseScraper(ABC):
             except Exception as exc:
                 last_exc = exc
             if attempt < self.retries:
-                await asyncio.sleep((2 ** attempt) + random.uniform(0, 0.5))
+                await asyncio.sleep((2 ** attempt) + random.uniform(0, 0.5))  # nosec B311 - jitter de reintento, no criptografía
         raise last_exc if last_exc else MaxRetriesError(f"{self.name}: sin respuesta")
 
     async def _fetch_html_layered(self, url: str,

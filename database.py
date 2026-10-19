@@ -365,30 +365,31 @@ def agregar_repuesto(codigo, nombre, descripcion, cantidad, precio, file_ids, ca
         conn.close()
 
 
-CAMPOS_PERMITIDOS = {
-    "nombre": "nombre",
-    "descripcion": "descripcion",
-    "cantidad": "cantidad",
-    "precio": "precio",
-    "file_id_1": "file_id_1",
-    "file_id_2": "file_id_2",
-    "file_id_3": "file_id_3",
-    "file_id_4": "file_id_4",
-    "file_id_5": "file_id_5",
-    "file_id_6": "file_id_6",
-    "categoria_id": "categoria_id",
-    "ubicacion": "ubicacion",
+# Queries estáticas para editar_repuesto (evita interpolación en SQL)
+_QUERIES_EDITAR = {
+    "nombre": "UPDATE repuestos SET nombre = ? WHERE codigo = ?",
+    "descripcion": "UPDATE repuestos SET descripcion = ? WHERE codigo = ?",
+    "cantidad": "UPDATE repuestos SET cantidad = ? WHERE codigo = ?",
+    "precio": "UPDATE repuestos SET precio = ? WHERE codigo = ?",
+    "file_id_1": "UPDATE repuestos SET file_id_1 = ? WHERE codigo = ?",
+    "file_id_2": "UPDATE repuestos SET file_id_2 = ? WHERE codigo = ?",
+    "file_id_3": "UPDATE repuestos SET file_id_3 = ? WHERE codigo = ?",
+    "file_id_4": "UPDATE repuestos SET file_id_4 = ? WHERE codigo = ?",
+    "file_id_5": "UPDATE repuestos SET file_id_5 = ? WHERE codigo = ?",
+    "file_id_6": "UPDATE repuestos SET file_id_6 = ? WHERE codigo = ?",
+    "categoria_id": "UPDATE repuestos SET categoria_id = ? WHERE codigo = ?",
+    "ubicacion": "UPDATE repuestos SET ubicacion = ? WHERE codigo = ?",
 }
 
 
 def editar_repuesto(codigo, campo, valor):
-    columna = CAMPOS_PERMITIDOS.get(campo)
-    if columna is None:
+    query = _QUERIES_EDITAR.get(campo)
+    if query is None:
         raise ValueError(f"Campo no permitido: {campo}")
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute(f"UPDATE repuestos SET {columna} = ? WHERE codigo = ?", (valor, codigo))
+        cursor.execute(query, (valor, codigo))
         conn.commit()
     finally:
         conn.close()

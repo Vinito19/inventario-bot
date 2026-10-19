@@ -9,7 +9,7 @@ import asyncio
 import logging
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - requerido para run_bot()
 import sys
 import time
 from datetime import datetime
@@ -135,6 +135,7 @@ def run_bot():
         text=True,
         bufsize=1,
         env=env,
+        shell=False,  # nosec B603 - lista de args, sin shell
     )
     # Leer salida en tiempo real y loguear
     for line in proc.stdout:
