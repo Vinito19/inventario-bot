@@ -17,9 +17,9 @@ from database import (
     aprobar_usuario,
     cambiar_estado_usuario,
     es_admin,
-    esta_registrado,
     get_connection,
 )
+from security import verify_password
 from keyboards import menu_admin, menu_usuario, botones_admin_aprobar_rechazar
 from handlers.utils import edit_mensaje, borrar_mensajes, eliminar_fotos
 from handlers.callback_security import validar_callback_token
@@ -149,7 +149,30 @@ async def reg_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return REG_PASSWORD
 
 
+async def _login(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Verifica la contraseña de un usuario ya registrado y le da acceso."""
+    password = update.message.text.strip()
+    usuario = obtener_usuario(user_id)
+
+    if usuario is None:
+        await update.message.reply_text("❌ Usuario no encontrado.")
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    if not verify_password(password, usuario.get("password_hash") or ""):
+        await update.message.reply_text("❌ Contraseña incorrecta. Intenta de nuevo:")
+        return REG_PASSWORD
+
+    context.user_data.clear()
+    return await _acceso_directo(update, context, usuario, usuario["nombre"])
+
+
 async def reg_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Si hay una sesión de login pendiente, verificar en vez de registrar
+    login_user_id = context.user_data.get("pending_user_id")
+    if login_user_id is not None:
+        return await _login(update, context, login_user_id)
+
     password = update.message.text.strip()
     user_id = update.effective_user.id
     nombre = update.effective_user.first_name

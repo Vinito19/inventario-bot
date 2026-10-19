@@ -5,6 +5,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from datetime import datetime
+
 import pytest
 import config
 import database
@@ -253,3 +255,79 @@ async def test_set_logo_admin():
     context = Context(user_id, is_admin=True)
     resultado = await set_logo_cmd(update, context)
     assert resultado is not None
+
+
+# ---------- Login con contraseña ----------
+
+@pytest.mark.asyncio
+async def test_login_password_correcta_no_reregistra():
+    from handlers import start as sh
+
+    user_id = 7100
+    registrar_usuario(user_id, "Pepe", username="pepe1", password="secret123",
+                      rol="usuario", activo=1)
+
+    context = Context(user_id)
+
+    # /start pide la contraseña (no re-registra)
+    await sh.start(Update(message=Msg("", chat_id=user_id), effective_user=User(user_id)), context)
+    assert context.user_data.get("pending_user_id") == user_id
+
+    # contraseña correcta -> acceso, estado preservado
+    estado = await sh.reg_password(
+        Update(message=Msg("secret123", chat_id=user_id), effective_user=User(user_id)), context
+    )
+
+    u = database.obtener_usuario(user_id)
+    assert u["rol"] == "usuario"
+    assert u["activo"] == 1
+    assert estado is not None
+    assert "pending_user_id" not in context.user_data
+
+
+@pytest.mark.asyncio
+async def test_login_password_incorrecta_no_cambia_usuario():
+    from handlers import start as sh
+
+    user_id = 7101
+    registrar_usuario(user_id, "Pepe", username="pepe2", password="secret123",
+                      rol="usuario", activo=1)
+
+    context = Context(user_id)
+    await sh.start(Update(message=Msg("", chat_id=user_id), effective_user=User(user_id)), context)
+
+    estado = await sh.reg_password(
+        Update(message=Msg("malaclave", chat_id=user_id), effective_user=User(user_id)), context
+    )
+
+    u = database.obtener_usuario(user_id)
+    assert u["rol"] == "usuario"
+    assert u["activo"] == 1
+    assert estado == sh.REG_PASSWORD
+    assert context.user_data.get("pending_user_id") == user_id
+
+
+@pytest.mark.asyncio
+async def test_registro_nuevo_usuario_guarda_password():
+    from handlers import start as sh
+
+    user_id = 7102
+    context = Context(user_id)
+
+    await sh.reg_username(
+        Update(message=Msg("nuevo_user", chat_id=user_id), effective_user=User(user_id)), context
+    )
+    assert context.user_data.get("reg_username") == "nuevo_user"
+
+    msg = Msg("secret123", chat_id=user_id)
+    msg.date = datetime.now()
+    estado = await sh.reg_password(
+        Update(message=msg, effective_user=User(user_id)), context
+    )
+
+    u = database.obtener_usuario(user_id)
+    assert u is not None
+    assert u["rol"] == "pendiente"
+    assert u["activo"] == 0
+    assert u["password_hash"]
+    assert estado is not None
