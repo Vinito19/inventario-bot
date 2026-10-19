@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
@@ -242,6 +242,20 @@ async def edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
         return EDIT_VALUE
 
+    if campo == "fotos" and query and data in ("fotos_extra_si", "fotos_extra_no"):
+        fotos = context.user_data["fotos_nuevas"]
+        if data == "fotos_extra_no" or len(fotos) >= 6:
+            context.user_data["nuevo_valor"] = fotos
+            await edit_mensaje(query, "✅ Fotos actualizadas\n\n¿Confirmar cambio?", reply_markup=menu_confirmar())
+            return CONFIRMAR
+        await edit_mensaje(
+            query,
+            "📷 Foto 5 de 6 (complementaria 1)\n\n"
+            "Envía la primera foto extra (detalle, embalaje, etiqueta, etc.):",
+            reply_markup=botones_volver(),
+        )
+        return EDIT_VALUE
+
     if campo == "cantidad" and query and data and data.startswith("cant_"):
         return await _cantidad_desde_callback(query, context, repuesto, data)
 
@@ -346,7 +360,7 @@ async def _valor_desde_texto(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 
 async def _foto_recibida(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Acumula una foto nueva; a la cuarta pasa a confirmar."""
+    """Acumula fotos nuevas (4 principales + hasta 2 extra); a las 4 pregunta por extras."""
     if update.message.photo:
         file_id = update.message.photo[-1].file_id
     else:
@@ -363,9 +377,27 @@ async def _foto_recibida(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return EDIT_VALUE
 
+    if num == 4:
+        await update.message.reply_text(
+            "✅ 4 fotos recibidas\n\n"
+            "📸 ¿Desea agregar 2 fotos extras opcionales? (5 y 6)",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Sí, agregar 2 fotos extra", callback_data="fotos_extra_si"),
+                 InlineKeyboardButton("➡️ No, continuar", callback_data="fotos_extra_no")],
+            ]),
+        )
+        return EDIT_VALUE
+
+    if num == 5:
+        await update.message.reply_text(
+            "✅ Foto 5 recibida\n\n📷 Envía la Foto 6 (complementaria 2):",
+            reply_markup=botones_volver(),
+        )
+        return EDIT_VALUE
+
     context.user_data["nuevo_valor"] = fotos
     await update.message.reply_text(
-        "✅ 4 fotos actualizadas\n\n¿Confirmar cambio?",
+        "✅ 6 fotos actualizadas\n\n¿Confirmar cambio?",
         reply_markup=menu_confirmar(),
     )
     return CONFIRMAR
@@ -478,7 +510,7 @@ editar_handler = ConversationHandler(
         SELECT_ITEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, select_item)],
         SELECT_FIELD: [CallbackQueryHandler(select_field, pattern="^editar_|cancelar$")],
         EDIT_VALUE: [
-            CallbackQueryHandler(edit_value, pattern="^(cant_|cat_|agregar_categoria|cancelar)"),
+            CallbackQueryHandler(edit_value, pattern="^(cant_|cat_|agregar_categoria|fotos_extra_|cancelar)"),
             MessageHandler(FILTRO_IMAGEN, edit_value),
             MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value),
         ],

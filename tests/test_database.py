@@ -198,6 +198,21 @@ def test_editar_repuesto_fotos(setup_categoria):
     assert r["file_id_4"] == "n4"
 
 
+def test_editar_repuesto_fotos_con_extras(setup_categoria):
+    agregar_repuesto("E-003b", "N", "d", 1, 1.0, _fotos(), setup_categoria, "A")
+    nuevas = ["n1", "n2", "n3", "n4", "n5", "n6"]
+    editar_repuesto_fotos("E-003b", nuevas)
+    r = obtener_repuesto("E-003b")
+    assert r["file_id_5"] == "n5"
+    assert r["file_id_6"] == "n6"
+
+    # Bajar de 6 a 4 fotos limpia las extras
+    editar_repuesto_fotos("E-003b", ["m1", "m2", "m3", "m4"])
+    r = obtener_repuesto("E-003b")
+    assert r["file_id_5"] is None
+    assert r["file_id_6"] is None
+
+
 def test_eliminar_repuesto(setup_categoria):
     agregar_repuesto("E-004", "N", "d", 1, 1.0, _fotos(), setup_categoria, "A")
     eliminar_repuesto("E-004")

@@ -395,16 +395,18 @@ def editar_repuesto(codigo, campo, valor):
 
 
 def editar_repuesto_fotos(codigo, file_ids):
-    if len(file_ids) < 4:
-        raise ValueError(f"Se esperaban 4 file_ids, se recibieron {len(file_ids)}")
+    if not 4 <= len(file_ids) <= 6:
+        raise ValueError(f"Se esperaban entre 4 y 6 file_ids, se recibieron {len(file_ids)}")
+    ids = list(file_ids) + [None] * (6 - len(file_ids))
     conn = get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE repuestos
-            SET file_id_1=?, file_id_2=?, file_id_3=?, file_id_4=?
+            SET file_id_1=?, file_id_2=?, file_id_3=?, file_id_4=?,
+                file_id_5=?, file_id_6=?
             WHERE codigo=?
-        """, (file_ids[0], file_ids[1], file_ids[2], file_ids[3], codigo))
+        """, (*ids, codigo))
         conn.commit()
     finally:
         conn.close()

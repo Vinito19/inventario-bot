@@ -665,8 +665,24 @@ async def test_edit_value_fotos_acumula_hasta_confirmar(entorn):
     assert await ed.edit_value(entorn.foto("F1"), ctx) == ed.EDIT_VALUE
     assert await ed.edit_value(entorn.foto("F2"), ctx) == ed.EDIT_VALUE
     assert await ed.edit_value(entorn.foto("F3"), ctx) == ed.EDIT_VALUE
-    assert await ed.edit_value(entorn.foto("F4"), ctx) == ed.CONFIRMAR
-    assert ctx.user_data["nuevo_valor"] == ["F1", "F2", "F3", "F4"]
+    assert await ed.edit_value(entorn.foto("F4"), ctx) == ed.EDIT_VALUE
+    # Tras las 4 principales pregunta por fotos extra: "no" confirma con 4
+    assert await ed.edit_value(entorn.click("fotos_extra_no"), ctx) == ed.CONFIRMAR
+    assert len(ctx.user_data["nuevo_valor"]) == 4
+
+
+@pytest.mark.asyncio
+async def test_edit_value_fotos_con_2_extras(entorn):
+    from handlers import editar as ed
+
+    ctx = _ctx_edicion(entorn, "fotos")
+    ctx.user_data["fotos_nuevas"] = []
+    for fid in ("F1", "F2", "F3", "F4"):
+        await ed.edit_value(entorn.foto(fid), ctx)
+    assert await ed.edit_value(entorn.click("fotos_extra_si"), ctx) == ed.EDIT_VALUE
+    assert await ed.edit_value(entorn.foto("F5"), ctx) == ed.EDIT_VALUE
+    assert await ed.edit_value(entorn.foto("F6"), ctx) == ed.CONFIRMAR
+    assert ctx.user_data["nuevo_valor"] == ["F1", "F2", "F3", "F4", "F5", "F6"]
 
 
 @pytest.mark.asyncio
