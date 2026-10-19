@@ -331,3 +331,31 @@ async def test_registro_nuevo_usuario_guarda_password():
     assert u["activo"] == 0
     assert u["password_hash"]
     assert estado is not None
+
+
+# ---------- Unicidad de username ----------
+
+@pytest.mark.asyncio
+async def test_username_duplicado_es_rechazado():
+    from handlers import start as sh
+
+    registrar_usuario(7200, "Ana", username="ana123", password="secret123",
+                      rol="usuario", activo=1)
+
+    context = Context(7201)
+    estado = await sh.reg_username(
+        Update(message=Msg("ana123", chat_id=7201), effective_user=User(7201)), context
+    )
+    assert estado == sh.REG_USERNAME
+    assert "reg_username" not in context.user_data
+
+
+def test_obtener_usuarios_descifra_y_detecta_username():
+    registrar_usuario(7202, "Carlos", username="carlos9", password="secret123",
+                      rol="usuario", activo=1)
+
+    u = next(x for x in database.obtener_usuarios() if x["user_id"] == 7202)
+    assert u["nombre"] == "Carlos"
+    assert u["username"] == "carlos9"
+    assert database.existe_username("carlos9") is True
+    assert database.existe_username("no_existe_xyz") is False

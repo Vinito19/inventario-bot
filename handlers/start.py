@@ -18,7 +18,7 @@ from database import (
     aprobar_usuario,
     cambiar_estado_usuario,
     es_admin,
-    get_connection,
+    existe_username,
 )
 from security import verify_password
 from keyboards import menu_admin, menu_usuario, botones_admin_aprobar_rechazar
@@ -132,15 +132,9 @@ async def reg_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return REG_USERNAME
 
     # Verificar unicidad
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM usuarios WHERE username = ?", (username,))
-        if cursor.fetchone():
-            await update.message.reply_text("⚠️ Ese nombre de usuario ya está en uso. Elige otro.")
-            return REG_USERNAME
-    finally:
-        conn.close()
+    if existe_username(username):
+        await update.message.reply_text("⚠️ Ese nombre de usuario ya está en uso. Elige otro.")
+        return REG_USERNAME
 
     context.user_data["reg_username"] = username
     await update.message.reply_text(

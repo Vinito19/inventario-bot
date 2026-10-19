@@ -218,9 +218,24 @@ def obtener_usuarios():
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM usuarios ORDER BY fecha DESC")
-        return cursor.fetchall()
+        usuarios = []
+        for row in cursor.fetchall():
+            row = dict(row)
+            if row.get("nombre"):
+                row["nombre"] = decrypt_field(row["nombre"])
+            if row.get("username"):
+                row["username"] = decrypt_field(row["username"])
+            usuarios.append(row)
+        return usuarios
     finally:
         conn.close()
+
+
+def existe_username(username):
+    """True si ya hay un usuario con ese nombre de usuario (comparando descifrado)."""
+    if not username:
+        return False
+    return any(u.get("username") == username for u in obtener_usuarios())
 
 
 def eliminar_usuario_db(user_id):
