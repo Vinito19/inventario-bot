@@ -1,3 +1,5 @@
+import logging
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler, ConversationHandler, MessageHandler, filters
 
@@ -15,6 +17,8 @@ from database import (
 from handlers.utils import edit_mensaje, guardar_mensaje, borrar_mensajes, finalizar
 from keyboards import botones_volver
 from excel_export import generar_excel, generar_excel_ventas, generar_excel_cambios
+
+logger = logging.getLogger(__name__)
 
 VENTAS_MES, CAMBIOS_MES = range(2)
 
@@ -154,8 +158,8 @@ async def exportar_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             import os
             if os.path.exists(archivo):
                 os.remove(archivo)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("No se pudo borrar el archivo temporal %s: %s", archivo, exc)
 
 
 async def ver_stock_cero(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -258,8 +262,8 @@ async def exportar_ventas(update: Update, context: ContextTypes.DEFAULT_TYPE):
             import os
             if os.path.exists(archivo):
                 os.remove(archivo)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("No se pudo borrar el archivo temporal %s: %s", archivo, exc)
 
 
 async def ver_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -330,8 +334,8 @@ async def exportar_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
             import os
             if os.path.exists(archivo):
                 os.remove(archivo)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("No se pudo borrar el archivo temporal %s: %s", archivo, exc)
 
 
 # ---------- FILTRO POR MES ----------

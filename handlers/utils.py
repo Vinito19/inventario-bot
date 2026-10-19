@@ -1,8 +1,12 @@
+import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from database import obtener_usuario
 from keyboards import menu_admin, menu_usuario
+
+logger = logging.getLogger(__name__)
 
 # Tope del término de búsqueda web: los catálogos responden peor con textos largos.
 MAX_TERMINO_BUSQUEDA = 90
@@ -165,8 +169,8 @@ async def borrar_mensajes(context: ContextTypes.DEFAULT_TYPE, chat_id=None, exce
     for mid in ids:
         try:
             await context.bot.delete_message(chat_id=cid, message_id=mid)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("No se pudo borrar el mensaje %s: %s", mid, exc)
 
 
 async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE, chat_id=None, except_message_id=None):
@@ -180,8 +184,8 @@ async def eliminar_fotos(context: ContextTypes.DEFAULT_TYPE, chat_id=None, excep
             continue
         try:
             await context.bot.delete_message(chat_id=cid, message_id=mid)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("No se pudo borrar el mensaje %s: %s", mid, exc)
 
 
 async def edit_mensaje(query, texto, reply_markup=None):

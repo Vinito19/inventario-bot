@@ -69,7 +69,8 @@ class ElmridgeaScraper(BaseScraper):
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 datos = json.loads(script.string or "")
-            except Exception:
+            except Exception as exc:
+                logger.debug("JSON-LD inválido ignorado: %s", exc)
                 continue
             if isinstance(datos, dict) and datos.get("@type") == "Product":
                 # precio
@@ -102,8 +103,8 @@ class ElmridgeaScraper(BaseScraper):
                     try:
                         precio_original = float(m.group(1).replace(",", "."))
                         break
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Precio inválido en ficha: %s (%s)", m.group(1), exc)
 
         if precio_original > 0:
             precio_usd = precio_original  # ya en EUR, _make_product no convierte si currency=EUR
@@ -158,8 +159,8 @@ class ElmridgeaScraper(BaseScraper):
                 if m:
                     try:
                         precio_original = float(m.group(1).replace(",", "."))
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Precio inválido en lista: %s (%s)", m.group(1), exc)
 
             # Imagen: data-src o src
             img = item.select_one("img.product-image-photo, img[src]")

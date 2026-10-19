@@ -293,8 +293,10 @@ async def _buscar_con_reintentos(session: aiohttp.ClientSession, query: str, max
                 if snippets:
                     todos_snippets.extend(snippets)
                     break  # Éxito con este motor
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Motor %s falló en el intento %s: %s", engine, intento + 1, exc
+                )
 
             if intento < max_intentos - 1:
                 wait = (2 ** intento) + random.uniform(0, 0.5)

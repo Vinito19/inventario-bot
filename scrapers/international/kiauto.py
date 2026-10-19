@@ -71,8 +71,8 @@ class KiautoScraper(BaseScraper):
                     if "'" in patron and m.lastindex == 2:
                         return float(f"{m.group(1)}.{m.group(2)}")
                     return float(m.group(1).replace(",", ".").replace(".", ""))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Precio inválido: %s (%s)", m.group(0), exc)
         return 0.0
 
     def _parse(self, html: str) -> List[Product]:

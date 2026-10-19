@@ -1,11 +1,14 @@
 """Normalización y conversión de precios a USD."""
 import json
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 import aiohttp
+
+logger = logging.getLogger(__name__)
 
 _PRICE_RE = re.compile(r"([A-Z$€£¥]{1,3})?\s*([\d][\d.,]{1,15})\s*([A-Z$€£¥]{1,3})?", re.I)
 
@@ -76,16 +79,16 @@ def _load_rates_cache() -> dict:
         if CACHE_FILE.exists():
             data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
             return data if isinstance(data, dict) else {}
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("No se pudo leer la caché de tasas: %s", exc)
     return {}
 
 
 def _save_rates_cache(cache: dict) -> None:
     try:
         CACHE_FILE.write_text(json.dumps(cache, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("No se pudo guardar la caché de tasas: %s", exc)
 
 
 @dataclass
@@ -117,8 +120,8 @@ async def get_exchange_rate(currency: str) -> float:
                     cache[currency] = rate
                     _save_rates_cache(cache)
                     return rate
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("No se pudo obtener la tasa de %s, se usa fallback: %s", currency, exc)
 
     # Fallback a tasa por defecto
     return EXCHANGE_RATES.get(currency, 1.0)

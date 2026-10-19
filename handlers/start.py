@@ -9,6 +9,7 @@ from telegram.ext import (
 )
 
 import config
+import logging
 import os
 import sys
 from database import (
@@ -26,6 +27,8 @@ from handlers.callback_security import validar_callback_token
 
 # Detectar modo test (pytest)
 _TEST_MODE = os.getenv("PYTEST_CURRENT_TEST") is not None or "pytest" in sys.modules
+
+logger = logging.getLogger(__name__)
 
 # Estados del ConversationHandler de registro
 REG_USERNAME, REG_PASSWORD = range(2)
@@ -63,8 +66,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         parse_mode="HTML",
                         reply_markup=botones_admin_aprobar_rechazar(user_id),
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("No se pudo notificar al admin %s: %s", admin_id, exc)
             await update.message.reply_text(
                 f"⚠️ Hola {nombre}, no estás autorizado aún.\n\n"
                 f"Tu solicitud ha sido enviada al administrador.\n"
@@ -209,8 +212,8 @@ async def reg_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML",
                 reply_markup=botones_admin_aprobar_rechazar(user_id),
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("No se pudo notificar la solicitud al admin %s: %s", admin_id, exc)
 
     await update.message.reply_text(
         f"✅ Registro completado, <b>{nombre}</b>.\n\n"
@@ -283,8 +286,8 @@ async def callback_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"🎉 ¡Bienvenido, {usuario['nombre']}!\n\nYa tienes acceso al bot de inventario.",
             reply_markup=menu_usuario(),
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("No se pudo avisar al usuario aprobado %s: %s", user_id_aprobado, exc)
 
 
 async def callback_rechazar(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -316,8 +319,8 @@ async def callback_rechazar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=user_id_rechazado,
             text="❌ Tu solicitud de acceso ha sido rechazada por el administrador.",
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("No se pudo avisar al usuario rechazado %s: %s", user_id_rechazado, exc)
 
 
 registration_conv = ConversationHandler(

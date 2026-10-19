@@ -37,6 +37,8 @@ from handlers.proforma import proforma_callback_handler, setlogo_handler
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
 
+logger = logging.getLogger(__name__)
+
 
 async def error_handler(update, context):
     error = context.error
@@ -70,10 +72,10 @@ async def error_handler(update, context):
         for admin_id in config.ADMIN_IDS:
             try:
                 await context.bot.send_message(admin_id, msg, parse_mode="HTML")
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as exc:
+                logger.debug("No se pudo notificar el error al admin %s: %s", admin_id, exc)
+    except Exception as exc:
+        logger.debug("No se pudo construir la alerta de error: %s", exc)
 
     try:
         if update and update.effective_message:
@@ -84,8 +86,8 @@ async def error_handler(update, context):
                 reply_markup=botones_volver(),
                 parse_mode="HTML"
             )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("No se pudo avisar al usuario del error: %s", exc)
 
 
 async def notificar_inicio(app):
@@ -97,8 +99,8 @@ async def notificar_inicio(app):
                 f"🟢 <b>Bot iniciado</b>\n\nHora: {config.ahora().strftime('%H:%M:%S')}",
                 parse_mode="HTML",
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("No se pudo notificar el inicio al admin %s: %s", admin_id, exc)
 
 
 def main():

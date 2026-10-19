@@ -1,4 +1,5 @@
 import os
+import logging
 import tempfile
 import shutil
 from telegram import Update
@@ -11,6 +12,8 @@ from database import (
 from keyboards import botones_volver
 from handlers.utils import edit_mensaje, finalizar, guardar_mensaje
 from pdf_proforma import generar_proforma
+
+logger = logging.getLogger(__name__)
 
 SET_LOGO_WAIT = range(1)[0]
 
@@ -163,8 +166,8 @@ async def proforma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for p in temp_paths:
             try:
                 os.remove(p)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("No se pudo borrar el temporal %s: %s", p, exc)
 
     return ConversationHandler.END
 

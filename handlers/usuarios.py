@@ -1,3 +1,5 @@
+import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
@@ -12,6 +14,8 @@ from database import (
 from keyboards import botones_usuarios, botones_detalle_usuario, botones_volver
 from handlers.utils import finalizar, edit_mensaje
 from handlers.callback_security import validar_callback_token
+
+logger = logging.getLogger(__name__)
 
 ADD_USER_ID, ADD_USER_NAME, CONFIRMAR_DELETE = range(3)
 
@@ -135,8 +139,8 @@ async def add_user_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=nuevo_user_id,
             text=f"🎉 ¡Bienvenido, {nombre}!\n\nYa tienes acceso al bot de inventario.",
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("No se pudo avisar al usuario nuevo %s: %s", nuevo_user_id, exc)
 
     return ConversationHandler.END
 
@@ -237,8 +241,8 @@ async def eliminar_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=user_id_eliminar,
             text="❌ Tu acceso al bot ha sido revocado por el administrador.",
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("No se pudo avisar al usuario revocado %s: %s", user_id_eliminar, exc)
 
     return ConversationHandler.END
 
@@ -293,8 +297,8 @@ async def cambiar_estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=uid,
             text=f"{'✅ Tu acceso ha sido restaurado.' if nuevo_estado else '❌ Tu acceso ha sido desactivado por el administrador.'}",
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("No se pudo avisar al usuario %s del cambio de estado: %s", uid, exc)
 
     return ConversationHandler.END
 
