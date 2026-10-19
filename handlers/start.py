@@ -12,6 +12,7 @@ import config
 import logging
 import os
 import sys
+import time
 from database import (
     obtener_usuario,
     registrar_usuario,
@@ -32,6 +33,18 @@ logger = logging.getLogger(__name__)
 
 # Estados del ConversationHandler de registro
 REG_USERNAME, REG_PASSWORD = range(2)
+
+# Límite de intentos de login: en memoria, se reinicia al reiniciar el bot.
+# shortcut: lockout global en RAM, suficiente para un solo proceso; usar Redis si se escala.
+_MAX_INTENTOS_LOGIN = 5
+_BLOQUEO_LOGIN_SEGUNDOS = 300
+_intentos_login: dict[int, tuple[int, float]] = {}
+
+
+def _bloqueo_restante(user_id: int) -> int:
+    """Segundos que faltan para que se levante el bloqueo de login (0 si no hay)."""
+    _, bloqueado_hasta = _intentos_login.get(user_id, (0, 0.0))
+    return max(0, int(bloqueado_hasta - time.time()))
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -85,6 +98,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Usuario ya registrado
     if usuario.get("password_hash"):
+        restante = _bloqueo_restante(user_id)
+        if restante > 0:
+            await update.message.reply_text(
+                f"⛔ Demasiados intentos fallidos. Espera {restante} segundos antes de reintentar."
+            )
+            return ConversationHandler.END
         # Tiene contraseña: pedirla para desbloquear
         context.user_data["pending_user_id"] = user_id
         await update.message.reply_text(
@@ -147,6 +166,14 @@ async def reg_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _login(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
     """Verifica la contraseña de un usuario ya registrado y le da acceso."""
+    restante = _bloqueo_restante(user_id)
+    if restante > 0:
+        await update.message.reply_text(
+            f"⛔ Demasiados intentos fallidos. Espera {restante} segundos antes de reintentar."
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+
     password = update.message.text.strip()
     usuario = obtener_usuario(user_id)
 
@@ -156,9 +183,22 @@ async def _login(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: in
         return ConversationHandler.END
 
     if not verify_password(password, usuario.get("password_hash") or ""):
-        await update.message.reply_text("❌ Contraseña incorrecta. Intenta de nuevo:")
+        fallos, _ = _intentos_login.get(user_id, (0, 0.0))
+        fallos += 1
+        if fallos >= _MAX_INTENTOS_LOGIN:
+            _intentos_login[user_id] = (0, time.time() + _BLOQUEO_LOGIN_SEGUNDOS)
+            await update.message.reply_text(
+                "⛔ Demasiados intentos fallidos. Intenta de nuevo en 5 minutos."
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
+        _intentos_login[user_id] = (fallos, 0.0)
+        await update.message.reply_text(
+            f"❌ Contraseña incorrecta. Intenta de nuevo ({_MAX_INTENTOS_LOGIN - fallos} restantes):"
+        )
         return REG_PASSWORD
 
+    _intentos_login.pop(user_id, None)
     context.user_data.clear()
     return await _acceso_directo(update, context, usuario, usuario["nombre"])
 

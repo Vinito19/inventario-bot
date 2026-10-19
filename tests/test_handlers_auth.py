@@ -359,3 +359,33 @@ def test_obtener_usuarios_descifra_y_detecta_username():
     assert u["username"] == "carlos9"
     assert database.existe_username("carlos9") is True
     assert database.existe_username("no_existe_xyz") is False
+
+
+# ---------- Límite de intentos de login ----------
+
+@pytest.mark.asyncio
+async def test_login_bloquea_tras_intentos_fallidos():
+    from handlers import start as sh
+
+    user_id = 7300
+    registrar_usuario(user_id, "Lock", username="lock1", password="secret123",
+                      rol="usuario", activo=1)
+    context = Context(user_id)
+    await sh.start(Update(message=Msg("", chat_id=user_id), effective_user=User(user_id)), context)
+
+    for _ in range(sh._MAX_INTENTOS_LOGIN):
+        await sh.reg_password(
+            Update(message=Msg("mala", chat_id=user_id), effective_user=User(user_id)), context
+        )
+
+    assert context.user_data.get("pending_user_id") is None
+    assert sh._bloqueo_restante(user_id) > 0
+
+    # Tras expirar el bloqueo, la contraseña correcta da acceso y limpia el contador
+    sh._intentos_login[user_id] = (0, 0.0)
+    context.user_data["pending_user_id"] = user_id
+    await sh.reg_password(
+        Update(message=Msg("secret123", chat_id=user_id), effective_user=User(user_id)), context
+    )
+    assert user_id not in sh._intentos_login
+    assert context.user_data.get("pending_user_id") is None
