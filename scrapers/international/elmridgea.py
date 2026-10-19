@@ -16,7 +16,6 @@ Selectores:
 import json
 import logging
 import re
-from typing import List
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
@@ -44,12 +43,12 @@ class ElmridgeaScraper(BaseScraper):
         """Detecta si la página es una ficha de producto (redirección por código exacto)."""
         # La ficha tiene h1 principal + JSON-LD Product con offers.price
         return bool(soup.select_one("h1[itemprop=name], h1.page-title")) and \
-               bool(soup.find("script", type="application/ld+json", string=re.compile(r"offers.*price", re.I)))
+               bool(soup.find("script", type="application/ld+json", string=re.compile(r"offers.*price", re.IGNORECASE)))
 
-    def _parse_ficha(self, html: str) -> List[Product]:
+    def _parse_ficha(self, html: str) -> list[Product]:
         """Parsea la ficha de producto (un solo producto, el buscado)."""
         soup = BeautifulSoup(html, "lxml")
-        results: List[Product] = []
+        results: list[Product] = []
 
         # Nombre del h1 o itemprop=name
         h1 = soup.select_one("h1[itemprop=name], h1.page-title, h1")
@@ -121,10 +120,10 @@ class ElmridgeaScraper(BaseScraper):
         ))
         return results
 
-    def _parse_lista(self, html: str) -> List[Product]:
+    def _parse_lista(self, html: str) -> list[Product]:
         """Parsea la lista de resultados de búsqueda por nombre."""
         soup = BeautifulSoup(html, "lxml")
-        results: List[Product] = []
+        results: list[Product] = []
 
         for item in soup.select(".product-item"):
             # Saltar recomendaciones si estamos en ficha: las recomendaciones
@@ -187,7 +186,7 @@ class ElmridgeaScraper(BaseScraper):
             ))
         return results
 
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         soup = BeautifulSoup(html, "lxml")
         if self._es_ficha_producto(soup):
             logger.debug("[elmridgea] parseando ficha de producto (redirección por código)")

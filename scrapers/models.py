@@ -1,7 +1,6 @@
 """Modelos de datos para los resultados de scraping de repuestos."""
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
 
 
 @dataclass
@@ -15,8 +14,8 @@ class Product:
     funcion: str
     lado: str
     tecnologia: str
-    compatibilidad: List[str]
-    componente_hermano: Optional[str] = None
+    compatibilidad: list[str]
+    componente_hermano: str | None = None
     sitio: str = ""
     pais: str = ""
     url: str = ""

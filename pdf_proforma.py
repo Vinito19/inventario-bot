@@ -1,11 +1,10 @@
 import math
 import os
 
-import config
-
 from fpdf import FPDF
 from PIL import Image
 
+import config
 from database import get_config
 
 PAGE_W = 210
@@ -189,8 +188,7 @@ def generar_proforma(repuesto, fotos_paths):
         y_foto1 = y_seccion1 + 10
         avail_w = 190.0
         avail_h = 265.0 - y_foto1
-        if avail_h < 40:
-            avail_h = 40
+        avail_h = max(avail_h, 40)
         _fit_image(pdf, fotos[0], 10, y_foto1, avail_w, avail_h)
 
         if len(fotos) > 1:

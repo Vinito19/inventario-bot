@@ -207,9 +207,9 @@ def test_formatear_resultado_web_sin_resultados():
 
 
 def test_formatear_resultado_web_orig_moneda():
-    from handlers.utils import _formatear_resultado
-
     import asyncio
+
+    from handlers.utils import _formatear_resultado
     from scrapers.international.aliexpress import AliExpressScraper
 
     s = AliExpressScraper()
@@ -278,6 +278,7 @@ class TestTerminoBusquedaWeb:
 
     def test_no_duplica_el_nombre_que_viene_del_mismo_registro(self):
         import sqlite3
+
         from handlers.utils import _termino_busqueda_web
         con = sqlite3.connect(":memory:")
         con.row_factory = sqlite3.Row
@@ -297,6 +298,7 @@ class TestTerminoBusquedaWeb:
 
     def test_acepta_sqlite3_row_como_en_la_base_real(self):
         import sqlite3
+
         from handlers.utils import _termino_busqueda_web
         con = sqlite3.connect(":memory:")
         con.row_factory = sqlite3.Row
@@ -310,6 +312,7 @@ class TestTerminoBusquedaWeb:
 
     def test_fila_sin_descripcion_no_falla(self):
         import sqlite3
+
         from handlers.utils import _termino_busqueda_web
         con = sqlite3.connect(":memory:")
         con.row_factory = sqlite3.Row

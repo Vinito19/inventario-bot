@@ -1,8 +1,8 @@
+import atexit
 import os
+import shutil
 import sys
 import tempfile
-import shutil
-import atexit
 
 # Asegurar que el proyecto raiz sea importable
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,7 +14,6 @@ _TMPDIR = tempfile.mkdtemp(prefix="vch_test_")
 os.environ["VCH_TEST_DIR"] = _TMPDIR
 
 import database
-from database import DB_NAME
 
 # Redirigir la DB de prueba a un archivo temporal y unico por sesion
 database.DB_NAME = os.path.join(_TMPDIR, "test_inventario.db")

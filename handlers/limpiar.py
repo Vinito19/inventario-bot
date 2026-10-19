@@ -1,9 +1,14 @@
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, CommandHandler
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+)
 
-from database import obtener_stock_cero, eliminar_stock_cero, es_admin
-from keyboards import menu_confirmar, botones_volver
-from handlers.utils import finalizar, edit_mensaje
+from database import eliminar_stock_cero, es_admin, obtener_stock_cero
+from handlers.utils import edit_mensaje, finalizar
+from keyboards import botones_volver, menu_confirmar
 
 CONFIRMAR = 0
 

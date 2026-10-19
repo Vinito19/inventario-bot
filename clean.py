@@ -9,9 +9,9 @@ Uso:
     python clean.py --all        # Todo (default)
 """
 
-import sys
 import argparse
 import shutil
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.resolve()

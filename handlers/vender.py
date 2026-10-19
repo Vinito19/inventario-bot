@@ -1,14 +1,21 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from database import (
     buscar_repuestos,
-    obtener_repuesto,
     esta_registrado,
+    obtener_repuesto,
     registrar_venta,
 )
-from keyboards import menu_confirmar, botones_volver
-from handlers.utils import finalizar, edit_mensaje
+from handlers.utils import edit_mensaje, finalizar
+from keyboards import botones_volver, menu_confirmar
 
 SEARCH, SELECT_ITEM, CANTIDAD, PRECIO, CONFIRMAR_ITEM, CART_SUMMARY, VENDEDOR = range(7)
 
@@ -241,7 +248,7 @@ async def mostrar_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         total += item["subtotal"]
 
-    texto += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     texto += f"💰 TOTAL: ${total:.2f}\n"
     texto += f"📦 Artículos: {len(cart)}\n"
 
@@ -332,7 +339,7 @@ async def _finalizar_cart_logic(update: Update, context: ContextTypes.DEFAULT_TY
                 "stock_restante": resultado["nuevo_stock"],
             })
         except Exception as e:
-            errores.append(f"{item['codigo']}: {str(e)}")
+            errores.append(f"{item['codigo']}: {e!s}")
 
     total = sum(i["subtotal"] for i in items_procesados)
 
@@ -344,7 +351,7 @@ async def _finalizar_cart_logic(update: Update, context: ContextTypes.DEFAULT_TY
                 f"   {item['cantidad']} und × ${item['subtotal']/item['cantidad']:.2f} "
                 f"= ${item['subtotal']:.2f} (Stock: {item['stock_restante']})\n"
             )
-        texto += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         texto += f"💰 TOTAL: ${total:.2f}\n"
         texto += f"📦 Ítems vendidos: {len(items_procesados)}\n"
         texto += f"👤 Vendedor: {vendedor_nombre}"

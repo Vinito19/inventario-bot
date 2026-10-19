@@ -5,13 +5,13 @@ Patrón: buscarweb_CODIGO
 """
 import html
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, ContextTypes, ConversationHandler
 
-from database import obtener_repuesto, esta_registrado
-from keyboards import botones_volver
-from handlers.utils import edit_mensaje, _formatear_resultado, _termino_busqueda_web
 import web_search
+from database import esta_registrado, obtener_repuesto
+from handlers.utils import _formatear_resultado, _termino_busqueda_web, edit_mensaje
+from keyboards import botones_volver
 
 
 async def buscarweb_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):

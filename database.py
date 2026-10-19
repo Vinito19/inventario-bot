@@ -3,7 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import config
-from security import encrypt_field, decrypt_field, hash_password
+from security import decrypt_field, encrypt_field, hash_password
 
 DB_NAME = "inventario.db"
 

@@ -7,7 +7,6 @@ de recomendaciones, por eso se espera al DOM + selector.
 """
 import logging
 import re
-from typing import List, Optional
 from urllib.parse import quote
 
 from bs4 import BeautifulSoup
@@ -52,9 +51,9 @@ class AliExpressScraper(BaseScraper):
         slug = "-".join((query or "").split())
         return f"{self.BASE_URL}/w/wholesale-{quote(slug)}.html"
 
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         soup = BeautifulSoup(html, "lxml")
-        results: List[Product] = []
+        results: list[Product] = []
         # Se prefieren las tarjetas de búsqueda; a[href*='/item/'] también
         # matchea las recomendaciones inyectadas por la API de related.
         tarjetas = soup.select("a.search-card-item") or soup.select("a[href*='/item/']")
@@ -88,7 +87,7 @@ class AliExpressScraper(BaseScraper):
                 results.append(producto)
         return results
 
-    async def search(self, codigo: str, nombre: str = "", limit: int = 5) -> List[Product]:
+    async def search(self, codigo: str, nombre: str = "", limit: int = 5) -> list[Product]:
         """Busca en AliExpress respetando el límite de resultados."""
         if not self.DISPONIBLE:
             logger.info("[aliexpress] omitido: la rejilla de resultados no es "
@@ -97,7 +96,7 @@ class AliExpressScraper(BaseScraper):
         return await super().search(codigo, nombre, limit)
 
     def _construir(self, codigo: str, nombre_texto: str, precio_texto: str,
-                   url_producto: str, imagen_url: str = "") -> Optional[Product]:
+                   url_producto: str, imagen_url: str = "") -> Product | None:
         """Construye un Product a partir del texto crudo de la tarjeta."""
         info = normalize_price(precio_texto or "")
         moneda = self._detectar_moneda(precio_texto) or (info.currency if info else self.currency)
@@ -146,12 +145,12 @@ class AliExpressScraper(BaseScraper):
         )
 
     async def _build_product(self, codigo: str, nombre_texto: str,
-                             precio_texto: str, url_producto: str) -> Optional[Product]:
+                             precio_texto: str, url_producto: str) -> Product | None:
         """Alias asíncrono usado por las pruebas y el flujo legacy."""
         return self._construir(codigo, nombre_texto, precio_texto, url_producto)
 
     @staticmethod
-    def _detectar_moneda(texto: str) -> Optional[str]:
+    def _detectar_moneda(texto: str) -> str | None:
         if not texto:
             return None
         for simbolo, moneda in _CURRENCY_BY_SYMBOL:

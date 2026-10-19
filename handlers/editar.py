@@ -1,9 +1,33 @@
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
-from database import buscar_repuestos, obtener_repuesto, editar_repuesto, editar_repuesto_fotos, esta_registrado, agregar_categoria, obtener_categoria_por_nombre, obtener_categorias, registrar_cambio, es_admin
-from keyboards import menu_editar, menu_cantidad, menu_confirmar, botones_volver, menu_categorias
-from handlers.utils import finalizar, edit_mensaje
+from database import (
+    agregar_categoria,
+    buscar_repuestos,
+    editar_repuesto,
+    editar_repuesto_fotos,
+    es_admin,
+    esta_registrado,
+    obtener_categoria_por_nombre,
+    obtener_categorias,
+    obtener_repuesto,
+    registrar_cambio,
+)
+from handlers.utils import edit_mensaje, finalizar
+from keyboards import (
+    botones_volver,
+    menu_cantidad,
+    menu_categorias,
+    menu_confirmar,
+    menu_editar,
+)
 
 SEARCH, SELECT_ITEM, SELECT_FIELD, EDIT_VALUE, ADD_CAT_NAME, CONFIRMAR = range(6)
 
@@ -235,8 +259,7 @@ async def edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await edit_mensaje(query, "⚠️ Valor no valido.", reply_markup=botones_volver())
             return EDIT_VALUE
         nueva_cantidad = repuesto["cantidad"] + delta
-        if nueva_cantidad < 0:
-            nueva_cantidad = 0
+        nueva_cantidad = max(nueva_cantidad, 0)
 
         context.user_data["nuevo_valor"] = nueva_cantidad
         await edit_mensaje(
@@ -387,7 +410,7 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await edit_mensaje(
                 query,
-                f"❌ Error al actualizar: {str(e)}",
+                f"❌ Error al actualizar: {e!s}",
                 reply_markup=botones_volver(),
             )
         context.user_data.clear()

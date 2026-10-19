@@ -3,10 +3,10 @@
 Seguridad para callbacks de Telegram usando HMAC.
 Previene manipulación de callback_data por usuarios maliciosos.
 """
-import hmac
 import hashlib
-import config
+import hmac
 
+import config
 
 # Longitud de la firma (bytes * 2 para hex)
 SIGNATURE_LENGTH = 16

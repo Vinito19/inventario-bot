@@ -8,7 +8,6 @@ estable. La clase se conserva para documentar el hallazgo, pero
 Es un sitio B2B de mayorista, no orientado al repuesto finalista.
 """
 import logging
-from typing import List
 from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
@@ -33,13 +32,13 @@ class AlibabaScraper(BaseScraper):
         params = urlencode({"fsb": "y", "IndexArea": "product_en", "SearchText": query})
         return f"{self.base_url}/trade/search?{params}"
 
-    async def search(self, codigo: str, nombre: str = "", limit: int = 5) -> List[Product]:
+    async def search(self, codigo: str, nombre: str = "", limit: int = 5) -> list[Product]:
         if not self.DISPONIBLE:
             logger.info("[alibaba] omitido: el sitio bloquea el acceso automatizado")
             return []
         return await super().search(codigo, nombre, limit)
 
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         soup = BeautifulSoup(html, "lxml")
         results = []
         for card in soup.select("a[href*='/product/'], .J-offer-wrapper a[href]"):

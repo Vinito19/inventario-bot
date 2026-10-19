@@ -2,38 +2,42 @@ import logging
 from datetime import time
 from zoneinfo import ZoneInfo
 
-import config
-from database import init_db, registrar_admins
-
-from telegram.ext import Application, Defaults
 from telegram.error import NetworkError
+from telegram.ext import Application, Defaults
 
+import config
 from backup import enviar_backup
-from handlers.start import start_handler, inicio_callback_handler, aprobar_callback_handler, rechazar_callback_handler
+from database import init_db, registrar_admins
 from handlers.agregar import agregar_handler
 from handlers.buscar import buscar_handler
+from handlers.buscarweb import buscarweb_callback_handler
+from handlers.categorias import categorias_handler
 from handlers.editar import editar_handler
 from handlers.eliminar import eliminar_handler
 from handlers.limpiar import limpiar_handler
+from handlers.proforma import proforma_callback_handler, setlogo_handler
 from handlers.reporte import (
-    reporte_handler,
-    reporte_callback_handler,
+    exportar_cambios_handler,
+    exportar_cambios_mes_handler,
     exportar_excel_handler,
+    exportar_ventas_handler,
+    exportar_ventas_mes_handler,
+    reporte_callback_handler,
+    reporte_handler,
+    ver_cambios_handler,
+    ver_cambios_mes_conv,
     ver_stock_cero_handler,
     ver_ventas_handler,
-    exportar_ventas_handler,
-    ver_cambios_handler,
-    exportar_cambios_handler,
     ver_ventas_mes_conv,
-    ver_cambios_mes_conv,
-    exportar_ventas_mes_handler,
-    exportar_cambios_mes_handler,
 )
-from handlers.categorias import categorias_handler
+from handlers.start import (
+    aprobar_callback_handler,
+    inicio_callback_handler,
+    rechazar_callback_handler,
+    start_handler,
+)
 from handlers.usuarios import usuarios_handler
 from handlers.vender import vender_handler
-from handlers.buscarweb import buscarweb_callback_handler
-from handlers.proforma import proforma_callback_handler, setlogo_handler
 
 logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -48,8 +52,8 @@ async def error_handler(update, context):
     
     # Log completo SOLO en archivo local (con token sanitizado)
     try:
-        import traceback
         import re
+        import traceback
         tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
         
         # Sanitizar traceback para log local: eliminar tokens de Telegram

@@ -1,11 +1,11 @@
 """Base común para todos los scrapers de repuestos."""
 import asyncio
+import logging
 import random
 import re
 import time
-import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urlencode
 
 import aiohttp
@@ -32,7 +32,7 @@ _GENERICOS = {
     "repuesto", "repuestos", "automotriz", "automoviles", "vehiculo",
     "toyota", "hyundai", "kia", "chevrolet", "nissan", "mazda", "honda",
     "ford", "renault", "chery", "suzuki", "great", "wall", "motors",
-    "repuesto", "autoparts", "parts", "originales",
+    "autoparts", "parts", "originales",
 }
 
 # Marcas para extraer compatibilidad (marca + modelo + años).
@@ -121,7 +121,7 @@ class BaseScraper(ABC):
     # el parser. "timeout_selector" acota esa espera: si el catálogo no tiene
     # el repuesto, el selector no aparecerá nunca.
     estado_selector: str = "visible"
-    timeout_selector: Optional[float] = None
+    timeout_selector: float | None = None
     settle_ms: int = 3500
     # Si es False, sólo se busca por nombre: útil en catálogos que no indexan
     # el código OEM y donde cada consulta extra cuesta una carga completa.
@@ -134,17 +134,17 @@ class BaseScraper(ABC):
     # Sitios que ya devuelven el HTML con los productos y no necesitan el
     # navegador: se pide primero por HTTP y sólo se cae a Playwright si falla.
     aiohttp_primero: bool = False
-    viewport: Dict[str, int] = {"width": 1440, "height": 900}
+    viewport: dict[str, int] = {"width": 1440, "height": 900}
     locale: str = "es-EC"
-    headers: Dict[str, str] = {
+    headers: dict[str, str] = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "es-EC,es;q=0.9,en;q=0.8",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
 
-    def __init__(self, session: Optional[aiohttp.ClientSession] = None,
-                 request_delay: Optional[float] = None):
+    def __init__(self, session: aiohttp.ClientSession | None = None,
+                 request_delay: float | None = None):
         self._session = session
         self._cloudscraper_instance: Any = None
         self._last_request_at = 0.0
@@ -170,10 +170,10 @@ class BaseScraper(ABC):
         ...
 
     @abstractmethod
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         ...
 
-    async def search(self, codigo: str, nombre: str = "", limit: int = 5) -> List[Product]:
+    async def search(self, codigo: str, nombre: str = "", limit: int = 5) -> list[Product]:
         """Buscar repuesto por código y nombre.
 
         Los catálogos de repuestos rara vez indexan el código OEM del
@@ -186,19 +186,19 @@ class BaseScraper(ABC):
         self._query_codigo = (codigo or "").strip()
         self._query_nombre = (nombre or "").strip()
 
-        candidatas: List[str] = [self._query_nombre]
+        candidatas: list[str] = [self._query_nombre]
         if self.buscar_por_codigo:
             candidatas += [self._query_codigo,
                            self._query_codigo.replace("-", "").replace(".", "")]
 
-        consultas: List[str] = []
+        consultas: list[str] = []
         for consulta in candidatas:
             if consulta and consulta not in consultas:
                 consultas.append(consulta)
         if not consultas:
             return []
 
-        resultados: List[Product] = []
+        resultados: list[Product] = []
 
         # La primera consulta es la más probable (el nombre descriptivo).
         html = await self._get_html(self.search_url(consultas[0]))
@@ -238,7 +238,7 @@ class BaseScraper(ABC):
                     )
         return self._dedupe(resultados)[:limit]
 
-    def _consultas_respaldo(self, consulta: str) -> List[str]:
+    def _consultas_respaldo(self, consulta: str) -> list[str]:
         """Versiones más cortas de la consulta, de la más específica a la más amplia.
 
         Los catálogos indexan descripciones cortas ("faro kia") y no la frase
@@ -248,7 +248,7 @@ class BaseScraper(ABC):
         año, que es donde el catálogo es más exigente.
         """
         palabras = [p for p in re.split(r"\s+", (consulta or "").strip()) if p]
-        respaldos: List[str] = []
+        respaldos: list[str] = []
         for largo in (3, 2, 1):
             if len(palabras) <= largo:
                 continue
@@ -287,7 +287,7 @@ class BaseScraper(ABC):
             imagen_url=imagen_url,
         )
 
-    def _dedupe(self, results: List[Product]) -> List[Product]:
+    def _dedupe(self, results: list[Product]) -> list[Product]:
         seen = set()
         out = []
         for r in results:
@@ -432,7 +432,7 @@ class BaseScraper(ABC):
         if len(partes) > 1:
             texto = partes[-1]
 
-        palabras: List[str] = []
+        palabras: list[str] = []
         for palabra in re.split(r"\s+", texto.strip()):
             limpia = palabra.strip(".,:;()[]_-").lower()
             # Cualquier token con un año dentro ("2017", "2017-", "2018-2020")
@@ -449,7 +449,7 @@ class BaseScraper(ABC):
     @staticmethod
     def _recortar_anos(texto: str) -> str:
         """Normaliza el rango de años: "2021 2023" / "2021- 2023" -> "2021-2023"."""
-        anios: List[str] = []
+        anios: list[str] = []
         for anio in re.findall(r"(?:19|20)\d{2}", texto):
             if anio not in anios:
                 anios.append(anio)
@@ -457,7 +457,7 @@ class BaseScraper(ABC):
                 break
         return "-".join(anios)
 
-    def _extract_compatibility(self, text: str) -> List[str]:
+    def _extract_compatibility(self, text: str) -> list[str]:
         """Extraer compatibilidad (marca + modelo + años) del texto."""
         compatibilities = []
 
@@ -489,7 +489,7 @@ class BaseScraper(ABC):
 
         return sorted(set(compatibilities)) if compatibilities else ["Verificar con vendedor"]
 
-    def _extract_sibling_component(self, text: str, codigo: str) -> Optional[str]:
+    def _extract_sibling_component(self, text: str, codigo: str) -> str | None:
         """Extraer componente hermano (código similar, difiere en el último carácter)."""
         if len(codigo) <= 1:
             return None
@@ -505,7 +505,7 @@ class BaseScraper(ABC):
         return None
 
     @staticmethod
-    def _build_url(url: str, params: Optional[Dict[str, Any]] = None) -> str:
+    def _build_url(url: str, params: dict[str, Any] | None = None) -> str:
         if not params:
             return url
         sep = "&" if "?" in url else "?"
@@ -518,8 +518,8 @@ class BaseScraper(ABC):
             await asyncio.sleep(wait)
         self._last_request_at = time.monotonic()
 
-    async def _get_html(self, url: str, params: Optional[Dict[str, Any]] = None) -> str:
-        last_exc: Optional[Exception] = None
+    async def _get_html(self, url: str, params: dict[str, Any] | None = None) -> str:
+        last_exc: Exception | None = None
         for attempt in range(self.retries + 1):
             await self._throttle()
             try:
@@ -531,8 +531,8 @@ class BaseScraper(ABC):
         raise last_exc if last_exc else MaxRetriesError(f"{self.name}: sin respuesta")
 
     async def _fetch_html_layered(self, url: str,
-                                  params: Optional[Dict[str, Any]] = None) -> str:
-        fetch_order: List[Any] = []
+                                  params: dict[str, Any] | None = None) -> str:
+        fetch_order: list[Any] = []
         if self.aiohttp_primero:
             fetch_order.append(self._get_html_aiohttp)
         if self.use_cloudscraper:
@@ -542,7 +542,7 @@ class BaseScraper(ABC):
         if not fetch_order:
             return await self._get_html_aiohttp(url, params)
 
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for fetcher in fetch_order:
             try:
                 return await fetcher(url, params)
@@ -551,7 +551,7 @@ class BaseScraper(ABC):
         return await self._get_html_aiohttp(url, params) if last_exc else ""
 
     async def _get_html_aiohttp(self, url: str,
-                                params: Optional[Dict[str, Any]] = None) -> str:
+                                params: dict[str, Any] | None = None) -> str:
         full = self._build_url(url, params)
         timeout = aiohttp.ClientTimeout(total=self.timeout)
 
@@ -569,7 +569,7 @@ class BaseScraper(ABC):
             return await _fetch(session)
 
     async def _get_html_cloudscraper(self, url: str,
-                                     params: Optional[Dict[str, Any]] = None) -> str:
+                                     params: dict[str, Any] | None = None) -> str:
         import cloudscraper
 
         full = self._build_url(url, params)
@@ -586,11 +586,11 @@ class BaseScraper(ABC):
         return resp.text
 
     async def _get_html_playwright(self, url: str,
-                                   params: Optional[Dict[str, Any]] = None) -> str:
+                                   params: dict[str, Any] | None = None) -> str:
         resultados = await self._navegador_html([self._build_url(url, params)])
         return resultados[0] if resultados else ""
 
-    async def _get_html_multi(self, urls: List[str]) -> List[str]:
+    async def _get_html_multi(self, urls: list[str]) -> list[str]:
         """Descarga varias páginas en paralelo con un único navegador.
 
         Lanzar un Chromium por URL costaba ~20 s extra en cada consulta; con
@@ -627,14 +627,14 @@ class BaseScraper(ABC):
 
         return await self._navegador_html(urls)
 
-    async def _navegador_html(self, urls: List[str]) -> List[str]:
+    async def _navegador_html(self, urls: list[str]) -> list[str]:
         """Carga las URLs con un único navegador de Playwright."""
         if not urls:
             return []
         from playwright.async_api import async_playwright
 
         wait_ms = int(self.timeout * 1000)
-        resultados: List[str] = [""] * len(urls)
+        resultados: list[str] = [""] * len(urls)
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(

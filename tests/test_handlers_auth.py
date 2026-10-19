@@ -8,6 +8,7 @@ if ROOT not in sys.path:
 from datetime import datetime
 
 import pytest
+
 import config
 import database
 from database import registrar_usuario

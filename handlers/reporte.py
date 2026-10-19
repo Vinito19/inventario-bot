@@ -1,22 +1,29 @@
 import logging
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler, ConversationHandler, MessageHandler, filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from database import (
-    obtener_resumen,
-    esta_registrado,
     es_admin,
-    obtener_resumen_ventas,
-    obtener_ventas,
+    esta_registrado,
     obtener_cambios,
-    obtener_ventas_por_fecha,
-    obtener_resumen_ventas_por_fecha,
     obtener_cambios_por_fecha,
+    obtener_resumen,
+    obtener_resumen_ventas,
+    obtener_resumen_ventas_por_fecha,
+    obtener_ventas,
+    obtener_ventas_por_fecha,
 )
-from handlers.utils import edit_mensaje, guardar_mensaje, borrar_mensajes, finalizar
+from excel_export import generar_excel, generar_excel_cambios, generar_excel_ventas
+from handlers.utils import borrar_mensajes, edit_mensaje, finalizar, guardar_mensaje
 from keyboards import botones_volver
-from excel_export import generar_excel, generar_excel_ventas, generar_excel_cambios
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +157,7 @@ async def exportar_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await edit_mensaje(
             query,
-            f"Error al generar Excel: {str(e)}",
+            f"Error al generar Excel: {e!s}",
             reply_markup=botones_volver(),
         )
     finally:
@@ -256,7 +263,7 @@ async def exportar_ventas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guardar_mensaje(update, context, doc_msg)
         await edit_mensaje(query, "Archivo de ventas enviado!", reply_markup=botones_volver())
     except Exception as e:
-        await edit_mensaje(query, f"Error al generar ventas: {str(e)}", reply_markup=botones_volver())
+        await edit_mensaje(query, f"Error al generar ventas: {e!s}", reply_markup=botones_volver())
     finally:
         try:
             import os
@@ -328,7 +335,7 @@ async def exportar_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guardar_mensaje(update, context, doc_msg)
         await edit_mensaje(query, "✅ Archivo de cambios enviado!", reply_markup=botones_volver())
     except Exception as e:
-        await edit_mensaje(query, f"❌ Error al generar cambios: {str(e)}", reply_markup=botones_volver())
+        await edit_mensaje(query, f"❌ Error al generar cambios: {e!s}", reply_markup=botones_volver())
     finally:
         try:
             import os
@@ -542,8 +549,9 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
     await edit_mensaje(query, "Generando archivo...")
 
     try:
-        from database import obtener_ventas_por_fecha
         from openpyxl import Workbook
+
+        from database import obtener_ventas_por_fecha
 
         ventas = obtener_ventas_por_fecha(fecha_inicio, fecha_fin)
 
@@ -577,6 +585,7 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
             ws.column_dimensions[col].width = w
 
         import os
+
         import config
         fecha_str = config.ahora().strftime("%Y%m%d_%H%M%S")
         archivo = f"ventas_{anio}_{mes:02d}_{fecha_str}.xlsx"
@@ -593,7 +602,7 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
         await edit_mensaje(query, "Archivo enviado!", reply_markup=botones_volver())
         os.remove(ruta)
     except Exception as e:
-        await edit_mensaje(query, f"Error: {str(e)}", reply_markup=botones_volver())
+        await edit_mensaje(query, f"Error: {e!s}", reply_markup=botones_volver())
 
 
 async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -648,6 +657,7 @@ async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYP
             ws.column_dimensions[col].width = w
 
         import os
+
         import config
         fecha_str = config.ahora().strftime("%Y%m%d_%H%M%S")
         archivo = f"cambios_{anio}_{mes:02d}_{fecha_str}.xlsx"
@@ -664,7 +674,7 @@ async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYP
         await edit_mensaje(query, "Archivo enviado!", reply_markup=botones_volver())
         os.remove(ruta)
     except Exception as e:
-        await edit_mensaje(query, f"Error: {str(e)}", reply_markup=botones_volver())
+        await edit_mensaje(query, f"Error: {e!s}", reply_markup=botones_volver())
 
 
 reporte_handler = CommandHandler("reporte", start_reporte)

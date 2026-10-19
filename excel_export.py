@@ -29,7 +29,7 @@ def generar_excel():
 
     headers = ["Código", "Nombre", "Descripción", "Categoría", "Cantidad", "Precio", "Ubicación", "Fecha"]
 
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     header_font = Font(bold=True, color="FFFFFF", size=11)
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -93,7 +93,7 @@ def generar_excel():
 
 
 def _estilos_excel(wb, ws, headers):
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     header_font = Font(bold=True, color="FFFFFF", size=11)
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")

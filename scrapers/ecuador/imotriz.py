@@ -6,7 +6,6 @@ Los resultados NO incluyen precio (el portal trabaja bajo pedido de
 cotización), así que los productos se devuelven con precio 0.
 """
 import logging
-from typing import List, Tuple
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
@@ -52,7 +51,7 @@ class ImotrizScraper(BaseScraper):
         return f"{self.BASE_URL}/catalogo/page/results?search={quote_plus(query)}"
 
     @staticmethod
-    def _meta(card) -> Tuple[str, str]:
+    def _meta(card) -> tuple[str, str]:
         """Extrae 'Marca:' y 'Nº de parte:' de la tarjeta."""
         marca = ""
         parte = ""
@@ -70,9 +69,9 @@ class ImotrizScraper(BaseScraper):
                 parte = valor
         return marca, parte
 
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         soup = BeautifulSoup(html, "lxml")
-        results: List[Product] = []
+        results: list[Product] = []
         for card in soup.select("div.card"):
             desc = card.select_one("a.description")
             link = card.select_one("a[href*='/producto/']")

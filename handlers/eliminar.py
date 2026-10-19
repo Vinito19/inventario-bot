@@ -1,9 +1,16 @@
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from database import buscar_repuestos, eliminar_repuesto, es_admin
-from keyboards import menu_confirmar, botones_volver
-from handlers.utils import finalizar, edit_mensaje
+from handlers.utils import edit_mensaje, finalizar
+from keyboards import botones_volver, menu_confirmar
 
 SEARCH, CONFIRMAR = range(2)
 
@@ -98,7 +105,7 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await edit_mensaje(
                 query,
-                f"❌ Error al eliminar: {str(e)}",
+                f"❌ Error al eliminar: {e!s}",
                 reply_markup=botones_volver(),
             )
         return ConversationHandler.END

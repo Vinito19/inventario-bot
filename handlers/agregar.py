@@ -1,16 +1,23 @@
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from database import (
+    agregar_repuesto,
+    es_admin,
+    esta_registrado,
     obtener_categoria_por_nombre,
     obtener_categorias,
-    agregar_repuesto,
     obtener_repuesto,
-    esta_registrado,
-    es_admin,
 )
-from keyboards import menu_categorias, menu_confirmar, botones_volver
-from handlers.utils import finalizar, edit_mensaje, guardar_mensaje, eliminar_fotos
+from handlers.utils import edit_mensaje, eliminar_fotos, finalizar, guardar_mensaje
+from keyboards import botones_volver, menu_categorias, menu_confirmar
 
 SELECT_CATEGORY, PHOTO_1, PHOTO_2, PHOTO_3, PHOTO_4, DECIDIR_FOTOS_EXTRA, PHOTO_5, PHOTO_6, CODIGO, NOMBRE, DESCRIPCION, CANTIDAD, PRECIO, UBICACION, CONFIRMAR = range(15)
 
@@ -589,7 +596,7 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await edit_mensaje(
                 query,
-                f"❌ Error al guardar: {str(e)}",
+                f"❌ Error al guardar: {e!s}",
                 reply_markup=botones_volver(),
             )
         context.user_data.clear()

@@ -11,7 +11,7 @@ navegador y sólo se recurre a Playwright si el sitio cambia.
 """
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
@@ -45,9 +45,9 @@ class MansueraScraper(BaseScraper):
     def search_url(self, query: str) -> str:
         return f"{self.BASE_URL}/productos?search={quote_plus(query)}"
 
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         soup = BeautifulSoup(html, "lxml")
-        results: List[Product] = []
+        results: list[Product] = []
 
         # El listado usa tarjetas `div.item`; el enlace del producto es un slug
         # en la raíz ("/faro-delantero-rh-soluto-1-4"), no una ruta /producto.
@@ -86,7 +86,7 @@ class MansueraScraper(BaseScraper):
         return results
 
     @staticmethod
-    def _datos_carrito(card) -> Dict[str, Any]:
+    def _datos_carrito(card) -> dict[str, Any]:
         """El botón de carrito lleva el producto en JSON (skus, precio, stock)."""
         boton = card.select_one("[data-cart-item]")
         if boton is None:
@@ -123,7 +123,7 @@ class MansueraScraper(BaseScraper):
         return link.get_text(" ", strip=True)
 
     @staticmethod
-    def _precio_producto(card, datos: Dict[str, Any]) -> Optional[float]:
+    def _precio_producto(card, datos: dict[str, Any]) -> float | None:
         """Precio del producto: primero el JSON del carrito, luego el texto.
 
         Se devuelve el monto ya numérico. El precio del catálogo no está en una
@@ -165,7 +165,7 @@ class MansueraScraper(BaseScraper):
 
     def _construir(self, codigo: str, nombre_texto: str, precio_texto: str,
                    url_producto: str, imagen_url: str = "",
-                   precio_monto: Optional[float] = None) -> Optional[Product]:
+                   precio_monto: float | None = None) -> Product | None:
         # El precio del JSON es un número real ("72.542" = 72,54 dólares). Si se
         # volviera a pasar por texto, el punto se leería como separador de miles
         # y un faro de $72,54 se guardaría como $72.542.
@@ -210,6 +210,6 @@ class MansueraScraper(BaseScraper):
         )
 
     async def _build_product(self, codigo: str, nombre_texto: str,
-                             precio_texto: str, url_producto: str) -> Optional[Product]:
+                             precio_texto: str, url_producto: str) -> Product | None:
         """Alias asíncrono usado por las pruebas y el flujo legacy."""
         return self._construir(codigo, nombre_texto, precio_texto, url_producto)

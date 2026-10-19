@@ -1,5 +1,4 @@
 """Tests del wrapper: sistema de alertas, auto-restart y lock de instancia unica."""
-import asyncio
 import logging
 import os
 import sys
@@ -275,7 +274,6 @@ async def test_crash_limita_inicios_con_lock(alertas):
     def _ya_tomado():
         return False
 
-    import pytest as _pytest
     original = run_bot.acquires_instancia_unica
     run_bot.acquires_instancia_unica = _ya_tomado
     try:

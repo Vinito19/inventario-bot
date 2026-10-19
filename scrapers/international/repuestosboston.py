@@ -6,13 +6,12 @@ Los precios se expresan en pesos chilenos con punto de miles ("$45.000"),
 por lo que se toma el monto del texto pero se etiqueta siempre como CLP.
 """
 import logging
-from typing import List
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
-from scrapers.currency import normalize_price, to_usd
 from scrapers.base import BaseScraper
+from scrapers.currency import normalize_price, to_usd
 from scrapers.models import Product
 
 logger = logging.getLogger(__name__)
@@ -30,9 +29,9 @@ class RepuestosBostonScraper(BaseScraper):
     def search_url(self, query: str) -> str:
         return f"{self.BASE_URL}/catalogsearch/result/?q={quote_plus(query)}"
 
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         soup = BeautifulSoup(html, "lxml")
-        results: List[Product] = []
+        results: list[Product] = []
         for card in soup.select("li.product-item"):
             link = card.select_one("a.product-item-link") or card.select_one("a[href]")
             titulo = card.select_one(".product-item-name a, h2.product-item-name a, h2")

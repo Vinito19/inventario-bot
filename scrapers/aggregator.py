@@ -1,7 +1,6 @@
 """Orquesta la búsqueda en múltiples scrapers con prioridad Ecuador."""
 import asyncio
 import logging
-from typing import Dict, List
 
 from scrapers.ecuador.imotriz import ImotrizScraper
 from scrapers.ecuador.mansuera import MansueraScraper
@@ -37,7 +36,7 @@ class SearchAggregator:
             KiautoScraper(),
         ]
 
-    async def search(self, codigo: str, nombre: str = "") -> Dict[str, List[Product]]:
+    async def search(self, codigo: str, nombre: str = "") -> dict[str, list[Product]]:
         """
         Buscar repuesto con prioridad Ecuador → Internacional.
 
@@ -49,7 +48,7 @@ class SearchAggregator:
                 "todos": [productos ordenados por precio]
             }
         """
-        resultados: Dict[str, List[Product]] = {
+        resultados: dict[str, list[Product]] = {
             "ecuador": [],
             "internacional": [],
             "todos": [],

@@ -4,13 +4,12 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import aiohttp
 
 logger = logging.getLogger(__name__)
 
-_PRICE_RE = re.compile(r"([A-Z$€£¥]{1,3})?\s*([\d][\d.,]{1,15})\s*([A-Z$€£¥]{1,3})?", re.I)
+_PRICE_RE = re.compile(r"([A-Z$€£¥]{1,3})?\s*([\d][\d.,]{1,15})\s*([A-Z$€£¥]{1,3})?", re.IGNORECASE)
 
 CURRENCY_BY_SYMBOL = {
     "$": "USD",
@@ -140,7 +139,7 @@ def format_price_usd(price_usd: float) -> str:
     return f"${price_usd:,.2f}"
 
 
-def _parse_amount(num: str) -> Optional[float]:
+def _parse_amount(num: str) -> float | None:
     s = num.strip().replace(" ", "")
     if not re.fullmatch(r"[\d.,]+", s):
         return None
@@ -167,7 +166,7 @@ def _parse_amount(num: str) -> Optional[float]:
         return None
 
 
-def _moneda_por_texto(text: str) -> Optional[str]:
+def _moneda_por_texto(text: str) -> str | None:
     """Devuelve la moneda mencionada explícitamente en el texto, si la hay."""
     mayusculas = text.upper()
     for nombre, moneda in MONEDA_POR_NOMBRE.items():
@@ -176,7 +175,7 @@ def _moneda_por_texto(text: str) -> Optional[str]:
     return None
 
 
-def normalize_price(raw: str) -> Optional[PriceInfo]:
+def normalize_price(raw: str) -> PriceInfo | None:
     """Extrae monto y moneda de un texto de precio."""
     if not raw:
         return None

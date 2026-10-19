@@ -8,17 +8,17 @@ Búsqueda robusta de repuestos en internet (sin API keys).
 - Caché persistente en archivo (JSON)
 - Rate limiting local
 """
-import re
-import json
 import asyncio
-import time
-import random
+import json
 import logging
 import os
-from pathlib import Path
-from urllib.parse import quote_plus
-from typing import Optional, List, Dict, Any
+import random
+import re
+import time
 from collections import defaultdict
+from pathlib import Path
+from typing import Any
+from urllib.parse import quote_plus
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -104,7 +104,7 @@ PATTERNS = {
         r"Gonow|Huatai|Landwind|Yema|Zhongxing|Shuanghuan|Jonway|Hafei|Changhe|Changfeng|SGMW|Wuling|Baojun|"
         r"Maxus|Roewe|Rising|IM|Neta|Hozon|Leapmotor|Xpeng|Nio|Li|Zeekr|Voyah|Aion|Deepal|Avatr|Huawei|Seres|"
         r"Arcfox|Blue|Shark|Sealion|Dolphin|Seal|Atto|Yuan|Song|Han|Tang|Qin|E2|E3|E5|E6|E7|E8|E9|G3|G5|G6|G7|G9|HS|U5|U6|U7|U8|U9)\b",
-        re.I,
+        re.IGNORECASE,
     ),
     "modelo": re.compile(
         r"(?i)\b(CS15|CS35|CS55|CS75|CS85|CS95|Corolla|Camry|Civic|Accord|Focus|Fusion|Mustang|F-150|Silverado|"
@@ -112,7 +112,7 @@ PATTERNS = {
         r"Mirage|Outlander|Pajero|Tucson|Santa Fe|Kona|Venue|Palisade|Telluride|Seltos|Soul|Rio|Forte|Cerato|Spectra|"
         r"Sephia|Mentor|Pride|Avella|Eado|Raeton|Alsvin|UNI-K|UNI-T|UNI-V|Oshan|X5|X7|Tiggo|Arrizo|Omni|Karry|M8|M6|T8|T9|X8|X9|E|ET|ES|EH|EHS)\b",
     ),
-    "lado": re.compile(r"\b(izquierdo|izq|left|derecho|der|right|delantero|front|trasero|rear)\b", re.I),
+    "lado": re.compile(r"\b(izquierdo|izq|left|derecho|der|right|delantero|front|trasero|rear)\b", re.IGNORECASE),
     "tipo": re.compile(
         r"\b(faro|headlight|faros|parachoques|bumper|parabrisas|windshield|espejo|mirror|retrovisor|puerta|door|"
         r"capot|hood|maletero|trunk|aleron|spoiler|parrilla|grille|radiador|radiator|condensador|condenser|"
@@ -120,7 +120,7 @@ PATTERNS = {
         r"amortiguador|shock|strut|resorte|spring|brazo|control arm|bieleta|sway bar|link|terminal|tie rod|"
         r"rotula|ball joint|buje|bushing|soporte|mount|biela|connecting rod|piston|anillo|ring|valvula|valve|"
         r"arbol|camshaft|cigueñal|crankshaft|bomba|pump|inyector|injector|sensor|modulo|module|ecu|ecm|pcm|tcm|bcm)\b",
-        re.I,
+        re.IGNORECASE,
     ),
     # Precio en Ecuador: USD, $, "ecuador", ".ec", "quito", "guayaquil"
     "precio_ec": re.compile(
@@ -139,7 +139,7 @@ class UserRateLimiter:
     def __init__(self, max_per_user: int = 3, window: int = 60):
         self.max_per_user = max_per_user
         self.window = window
-        self.user_requests: Dict[int, List[float]] = defaultdict(list)
+        self.user_requests: dict[int, list[float]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
     async def acquire(self, user_id: int) -> bool:
@@ -162,7 +162,7 @@ class Cache:
     def __init__(self, path: Path, ttl: int):
         self.path = path
         self.ttl = ttl
-        self._data: Dict[str, tuple[Any, float]] = {}
+        self._data: dict[str, tuple[Any, float]] = {}
         self._load()
 
     def _load(self):
@@ -186,7 +186,7 @@ class Cache:
         except Exception as exc:
             logging.getLogger(__name__).warning("No se pudo guardar la caché: %s", exc)
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         now = time.time()
         if key in self._data:
             value, ts = self._data[key]
@@ -204,14 +204,14 @@ class Cache:
 CACHE = Cache(CACHE_FILE, CACHE_TTL)
 
 # ─── Utilidades ───────────────────────────────────────────────────────
-def _extraer(texto: str, pattern: re.Pattern) -> Optional[str]:
+def _extraer(texto: str, pattern: re.Pattern) -> str | None:
     match = pattern.search(texto)
     if match:
         return match.group(1).capitalize() if match.lastindex == 1 else match.group(0).capitalize()
     return None
 
 
-def _extraer_precio_ecuador(texto: str) -> Optional[str]:
+def _extraer_precio_ecuador(texto: str) -> str | None:
     """Extrae precio solo si hay indicio de Ecuador en el texto."""
     # Buscar patrón específico Ecuador
     match = PATTERNS["precio_ec"].search(texto)
@@ -245,7 +245,7 @@ def _normalizar_lado(lado: str) -> str:
 
 
 # ─── Búsqueda por motor ───────────────────────────────────────────────
-async def _buscar_en_motor(session: aiohttp.ClientSession, engine: dict, query: str) -> List[str]:
+async def _buscar_en_motor(session: aiohttp.ClientSession, engine: dict, query: str) -> list[str]:
     """Busca en un motor específico y retorna lista de snippets."""
     url = f"{engine['url']}?{engine['param']}={quote_plus(query)}"
 
@@ -255,7 +255,7 @@ async def _buscar_en_motor(session: aiohttp.ClientSession, engine: dict, query: 
             if resp.status != 200:
                 return []
             html = await resp.text()
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return []
     except aiohttp.ClientError:
         return []
@@ -272,7 +272,7 @@ async def _buscar_en_motor(session: aiohttp.ClientSession, engine: dict, query: 
     return snippets
 
 
-async def _buscar_con_reintentos(session: aiohttp.ClientSession, query: str, max_intentos: int = 2) -> List[str]:
+async def _buscar_con_reintentos(session: aiohttp.ClientSession, query: str, max_intentos: int = 2) -> list[str]:
     """Busca en todos los motores con reintentos y backoff."""
     todos_snippets = []
 
@@ -296,7 +296,7 @@ async def _buscar_con_reintentos(session: aiohttp.ClientSession, query: str, max
 
 
 # ─── Función principal ────────────────────────────────────────────────
-async def _buscar_en_motores_genericos(codigo: str, nombre: str = "") -> Optional[Dict]:
+async def _buscar_en_motores_genericos(codigo: str, nombre: str = "") -> dict | None:
     """Fallback: búsqueda genérica en DuckDuckGo/Bing/Brave."""
     query = f"{codigo} {nombre}".strip()
     if not query:
@@ -347,7 +347,7 @@ async def _buscar_en_motores_genericos(codigo: str, nombre: str = "") -> Optiona
     }
 
 
-async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -> Optional[Dict]:
+async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -> dict | None:
     """
     Busca repuesto en sitios ecuatorianos (prioridad) e internacionales (fallback).
     Retorna dict con resultados de scrapers o, si fallan, búsqueda web genérica.

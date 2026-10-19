@@ -6,6 +6,9 @@ from scrapers.international.kiauto import KiautoScraper
 from scrapers.international.repuestosboston import RepuestosBostonScraper
 
 __all__ = [
-    "AliExpressScraper", "AlibabaScraper", "RepuestosBostonScraper",
-    "ElmridgeaScraper", "KiautoScraper",
+    "AliExpressScraper",
+    "AlibabaScraper",
+    "ElmridgeaScraper",
+    "KiautoScraper",
+    "RepuestosBostonScraper",
 ]

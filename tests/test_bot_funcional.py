@@ -15,8 +15,7 @@ import pytest
 
 import config
 import database
-from database import obtener_repuesto, registrar_usuario, agregar_categoria
-
+from database import agregar_categoria, obtener_repuesto, registrar_usuario
 
 # ================= HARNESS DE TELEGRAM =================
 
@@ -563,8 +562,8 @@ async def test_eliminar_repuesto(entorn, admin_registrado, nuevo_repuesto):
 @pytest.mark.asyncio
 async def test_ciclo_aprobacion_usuario(entorn):
     """Usuario nuevo -> pendiente -> admin lo aprueba -> puede usar el bot."""
-    from handlers import start as sh
     from handlers import agregar as ag
+    from handlers import start as sh
     from handlers.callback_security import generar_callback_token
 
     nuevo = 777001

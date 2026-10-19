@@ -1,13 +1,12 @@
 import os
 import sys
-import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 import pytest
-import database
+
 from database import agregar_categoria, agregar_repuesto
 
 
@@ -37,6 +36,7 @@ def test_generar_excel(repuestos_en_db):
 def test_excel_contenido(repuestos_en_db):
     """Valida que el Excel contenga los datos esperados."""
     from openpyxl import load_workbook
+
     from excel_export import generar_excel
 
     ruta = generar_excel()
@@ -72,6 +72,7 @@ def test_hacer_backup_db():
 def test_backup_db_valido():
     """El backup debe ser una base SQLite abrible."""
     import sqlite3
+
     from backup import hacer_backup_db
 
     ruta = hacer_backup_db()

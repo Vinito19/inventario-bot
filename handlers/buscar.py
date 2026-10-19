@@ -1,14 +1,32 @@
 import html
 import re
-from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler, CallbackQueryHandler, MessageHandler, CommandHandler, filters
 
-from database import buscar_repuestos, obtener_repuesto, esta_registrado
-from keyboards import botones_volver, menu_resultados, menu_detalle_repuesto, menu_buscar_modo
-from handlers.utils import (finalizar, edit_mensaje, guardar_mensaje,
-                             _formatear_resultado, _termino_busqueda_web)
-from handlers.proforma import proforma_callback
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
+
 import web_search
+from database import buscar_repuestos, esta_registrado, obtener_repuesto
+from handlers.proforma import proforma_callback
+from handlers.utils import (
+    _formatear_resultado,
+    _termino_busqueda_web,
+    edit_mensaje,
+    finalizar,
+    guardar_mensaje,
+)
+from keyboards import (
+    botones_volver,
+    menu_buscar_modo,
+    menu_detalle_repuesto,
+    menu_resultados,
+)
 
 
 def _escape(text: str) -> str:

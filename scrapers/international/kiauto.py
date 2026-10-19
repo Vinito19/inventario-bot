@@ -17,7 +17,6 @@ El sitio incluye el código OEM en la URL del producto (p00PG... o p00398...).
 """
 import logging
 import re
-from typing import List
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
@@ -75,9 +74,9 @@ class KiautoScraper(BaseScraper):
                     logger.debug("Precio inválido: %s (%s)", m.group(0), exc)
         return 0.0
 
-    def _parse(self, html: str) -> List[Product]:
+    def _parse(self, html: str) -> list[Product]:
         soup = BeautifulSoup(html, "lxml")
-        results: List[Product] = []
+        results: list[Product] = []
 
         # La búsqueda por código devuelve 2 articles; por nombre devuelve muchos.
         for art in soup.select("article.product-item"):

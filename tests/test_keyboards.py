@@ -1,28 +1,25 @@
-import pytest
-import sys
 import os
-import re
+import sys
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from keyboards import (
-    menu_admin,
-    menu_usuario,
-    menu_categorias,
-    menu_editar,
-    menu_cantidad,
-    menu_confirmar,
-    botones_volver,
-    menu_resultados,
-    menu_detalle_repuesto,
-    botones_usuario_pendientes,
     botones_admin_aprobar_rechazar,
-    botones_usuarios,
     botones_detalle_usuario,
+    botones_usuario_pendientes,
+    botones_usuarios,
+    botones_volver,
+    menu_admin,
+    menu_cantidad,
+    menu_categorias,
+    menu_confirmar,
+    menu_detalle_repuesto,
+    menu_editar,
+    menu_resultados,
+    menu_usuario,
 )
-
-from handlers.callback_security import generar_callback_token
 
 
 def _extract_data(menu):
