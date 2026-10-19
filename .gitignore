@@ -1,6 +1,7 @@
 .env
-inventario.db
-database.db
+*.db
+*.db-*
+verify_backup.py
 __pycache__/
 *.pyc
 *.pyo
