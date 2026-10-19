@@ -62,83 +62,98 @@ def _precio_producto(prod: dict) -> str:
     return "💰 <b>Precio a consultar con el vendedor</b>"
 
 
+def _formatear_producto(prod: dict, es_ecuador: bool) -> list[str]:
+    """Devuelve las líneas formateadas para un producto individual."""
+    from markupsafe import escape
+    lines = [f"\n<b>{escape(prod['sitio'])}" + (f" ({escape(prod['pais'])})" if not es_ecuador else "") + "</b>"]
+    lines.append(f"📦 {escape(prod['nombre'][:80])}")
+    
+    if es_ecuador:
+        lines.append(_precio_producto(prod))
+    else:
+        # Internacional: mostrar USD + moneda original
+        if (prod.get("precio_usd") or 0) > 0:
+            lines.append(f"💰 <b>${prod['precio_usd']:.2f} USD</b> "
+                         f"(orig: {prod['moneda_original']} {prod['precio_original']:.2f})")
+        else:
+            lines.append("💰 <b>Precio a consultar con el vendedor</b>")
+    
+    lines.append(f"🔧 Función: {escape(prod['funcion'])}")
+    lines.append(f"↔️ Lado: {escape(prod['lado'])}")
+    lines.append(f"💡 Tecnología: {escape(prod['tecnologia'])}")
+
+    if prod.get("compatibilidad"):
+        compat = ", ".join(prod["compatibilidad"][:2])
+        lines.append(f"🚗 Compatible: {escape(compat)}")
+
+    if prod.get("componente_hermano"):
+        lines.append(f"🔗 Hermano: {escape(prod['componente_hermano'])}")
+
+    lines.append(f"🔗 <a href='{escape(prod['url'])}'>Ver producto</a>")
+    return lines
+
+
+def _formatear_seccion(lines: list, titulo: str, productos: list[dict], es_ecuador: bool) -> None:
+    """Agrega al buffer las líneas para una sección de resultados."""
+    if not productos:
+        return
+    lines.append(f"\n{titulo}")
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    for prod in productos[:3]:
+        lines.extend(_formatear_producto(prod, es_ecuador))
+
+
+def _formatear_fallback(lines: list, r: dict) -> None:
+    """Agrega líneas de fallback genérico cuando no hay resultados de scrapers."""
+    from markupsafe import escape
+    if r.get("marca"):
+        lines.append(f"🚗 <b>Marca:</b> {escape(r['marca'])}")
+    if r.get("modelo"):
+        lines.append(f"📋 <b>Modelo:</b> {escape(r['modelo'])}")
+    if r.get("tipo"):
+        lines.append(f"🔧 <b>Tipo de pieza:</b> {escape(r['tipo'])}")
+    if r.get("lado"):
+        lines.append(f"↔️ <b>Lado:</b> {escape(r['lado'])}")
+    if r.get("precio_ecuador"):
+        lines.append(f"💰 <b>Precio Ecuador:</b> {escape(r['precio_ecuador'])}")
+    if r.get("snippets"):
+        lines.append("\n📄 <b>Fragmentos encontrados:</b>")
+        for i, s in enumerate(r["snippets"], 1):
+            lines.append(f"  {i}. {escape(s[:150])}...")
+    if not r.get("marca") and not r.get("modelo") and not r.get("precio_ecuador") \
+            and not r.get("snippets"):
+        lines.append("\n❌ No se encontraron resultados para este código.")
+        lines.append("\n<i>Intenta con otro código o nombre de repuesto.</i>")
+
+
 def _formatear_resultado(r: dict) -> str:
     """Formatea resultados de búsqueda con prioridad Ecuador."""
     from markupsafe import escape
 
+    resultados_ecuador = r.get("resultados_ecuador", [])
+    resultados_internacional = r.get("resultados_internacional", [])
+
     lines = [
-        f"🌐 <b>BÚSQUEDA WEB: {escape(r['codigo'])}</b>",
+        f"🌐 <b>BÚSQUEDA WEB: {escape(r.get('codigo', ''))}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
 
-    # Mostrar resultados de Ecuador primero
-    if r.get("resultados_ecuador"):
-        lines.append(f"\n🇪🇨 <b>RESULTADOS EN ECUADOR ({len(r['resultados_ecuador'])})</b>")
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    _formatear_seccion(
+        lines,
+        f"\n🇪🇨 <b>RESULTADOS EN ECUADOR ({len(resultados_ecuador)})</b>",
+        resultados_ecuador,
+        es_ecuador=True,
+    )
 
-        for i, prod in enumerate(r["resultados_ecuador"][:3], 1):
-            lines.append(f"\n<b>{i}. {escape(prod['sitio'])}</b>")
-            lines.append(f"📦 {escape(prod['nombre'][:80])}")
-            lines.append(_precio_producto(prod))
-            lines.append(f"🔧 Función: {escape(prod['funcion'])}")
-            lines.append(f"↔️ Lado: {escape(prod['lado'])}")
-            lines.append(f"💡 Tecnología: {escape(prod['tecnologia'])}")
+    _formatear_seccion(
+        lines,
+        f"\n🌍 <b>RESULTADOS INTERNACIONALES ({len(resultados_internacional)})</b>",
+        resultados_internacional,
+        es_ecuador=False,
+    )
 
-            if prod.get("compatibilidad"):
-                compat = ", ".join(prod["compatibilidad"][:2])
-                lines.append(f"🚗 Compatible: {escape(compat)}")
-
-            if prod.get("componente_hermano"):
-                lines.append(f"🔗 Hermano: {escape(prod['componente_hermano'])}")
-
-            lines.append(f"🔗 <a href='{escape(prod['url'])}'>Ver producto</a>")
-
-    # Mostrar resultados internacionales si existen
-    if r.get("resultados_internacional"):
-        lines.append(f"\n🌍 <b>RESULTADOS INTERNACIONALES ({len(r['resultados_internacional'])})</b>")
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        for i, prod in enumerate(r["resultados_internacional"][:3], 1):
-            lines.append(f"\n<b>{i}. {escape(prod['sitio'])} ({escape(prod['pais'])})</b>")
-            lines.append(f"📦 {escape(prod['nombre'][:80])}")
-            if (prod.get("precio_usd") or 0) > 0:
-                lines.append(f"💰 <b>${prod['precio_usd']:.2f} USD</b> "
-                             f"(orig: {prod['moneda_original']} {prod['precio_original']:.2f})")
-            else:
-                lines.append("💰 <b>Precio a consultar con el vendedor</b>")
-            lines.append(f"🔧 Función: {escape(prod['funcion'])}")
-            lines.append(f"↔️ Lado: {escape(prod['lado'])}")
-            lines.append(f"💡 Tecnología: {escape(prod['tecnologia'])}")
-
-            if prod.get("compatibilidad"):
-                compat = ", ".join(prod["compatibilidad"][:2])
-                lines.append(f"🚗 Compatible: {escape(compat)}")
-
-            if prod.get("componente_hermano"):
-                lines.append(f"🔗 Hermano: {escape(prod['componente_hermano'])}")
-
-            lines.append(f"🔗 <a href='{escape(prod['url'])}'>Ver producto</a>")
-
-    # Mensaje si no hay resultados de scrapers (fallback genérico)
-    if not r.get("resultados_ecuador") and not r.get("resultados_internacional"):
-        if r.get("marca"):
-            lines.append(f"🚗 <b>Marca:</b> {escape(r['marca'])}")
-        if r.get("modelo"):
-            lines.append(f"📋 <b>Modelo:</b> {escape(r['modelo'])}")
-        if r.get("tipo"):
-            lines.append(f"🔧 <b>Tipo de pieza:</b> {escape(r['tipo'])}")
-        if r.get("lado"):
-            lines.append(f"↔️ <b>Lado:</b> {escape(r['lado'])}")
-        if r.get("precio_ecuador"):
-            lines.append(f"💰 <b>Precio Ecuador:</b> {escape(r['precio_ecuador'])}")
-        if r.get("snippets"):
-            lines.append("\n📄 <b>Fragmentos encontrados:</b>")
-            for i, s in enumerate(r["snippets"], 1):
-                lines.append(f"  {i}. {escape(s[:150])}...")
-        if not r.get("marca") and not r.get("modelo") and not r.get("precio_ecuador") \
-                and not r.get("snippets"):
-            lines.append("\n❌ No se encontraron resultados para este código.")
-            lines.append("\n<i>Intenta con otro código o nombre de repuesto.</i>")
+    if not resultados_ecuador and not resultados_internacional:
+        _formatear_fallback(lines, r)
 
     lines.append("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     lines.append(f"📊 Total: {r.get('total_ecuador', 0)} Ecuador "
