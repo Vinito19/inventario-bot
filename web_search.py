@@ -14,6 +14,7 @@ import asyncio
 import time
 import random
 import logging
+import os
 from pathlib import Path
 from urllib.parse import quote_plus
 from typing import Optional, List, Dict, Any
@@ -173,7 +174,8 @@ class Cache:
                     raw = json.load(f)
                 for k, v in raw.items():
                     self._data[k] = (v["value"], v["timestamp"])
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning("No se pudo cargar la caché: %s", exc)
                 self._data = {}
 
     def _save(self):
@@ -183,8 +185,8 @@ class Cache:
             fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(raw, f, ensure_ascii=False)
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).warning("No se pudo guardar la caché: %s", exc)
 
     def get(self, key: str) -> Optional[Any]:
         now = time.time()

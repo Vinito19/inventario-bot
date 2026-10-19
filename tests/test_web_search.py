@@ -317,3 +317,18 @@ class TestTerminoBusquedaWeb:
         con.execute("INSERT INTO repuestos VALUES ('X1', 'Retrovisor', NULL)")
         fila = con.execute("SELECT * FROM repuestos").fetchone()
         assert _termino_busqueda_web(fila) == 'Retrovisor'
+
+
+# ---------- Caché persistente ----------
+
+def test_cache_persiste_en_disco(tmp_path):
+    import web_search
+
+    path = tmp_path / "cache_test.json"
+    c1 = web_search.Cache(path, ttl=3600)
+    c1.set("clave", {"x": 1})
+    assert path.exists(), "la caché debe escribir el archivo en disco"
+
+    # Una instancia nueva debe leer lo persistido por la primera
+    c2 = web_search.Cache(path, ttl=3600)
+    assert c2.get("clave") == {"x": 1}
