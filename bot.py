@@ -7,7 +7,7 @@ from telegram.ext import Application, Defaults
 
 import config
 from backup import enviar_backup
-from database import init_db, registrar_admins, obtener_usuarios, es_admin
+from database import init_db, registrar_admins
 from handlers.agregar import agregar_handler
 from handlers.buscar import buscar_handler
 from handlers.buscarweb import buscarweb_callback_handler
@@ -16,7 +16,6 @@ from handlers.editar import editar_handler
 from handlers.eliminar import eliminar_handler
 from handlers.limpiar import limpiar_handler
 from handlers.proforma import proforma_callback_handler, setlogo_handler
-from keyboards import menu_admin, menu_usuario
 from handlers.reporte import (
     exportar_cambios_handler,
     exportar_cambios_mes_handler,
@@ -96,8 +95,7 @@ async def error_handler(update, context):
 
 
 async def notificar_inicio(app):
-    """Avisa a administradores y usuarios activos que el bot (re)arrancó."""
-    # 1. Avisar a administradores
+    """Avisa a los administradores que el bot (re)arrancó."""
     for admin_id in config.ADMIN_IDS:
         try:
             await app.bot.send_message(
@@ -107,33 +105,6 @@ async def notificar_inicio(app):
             )
         except Exception as exc:
             logger.debug("No se pudo notificar el inicio al admin %s: %s", admin_id, exc)
-
-    # 2. Notificar a todos los usuarios activos con su menú correspondiente
-    usuarios = obtener_usuarios()
-    for u in usuarios:
-        if not u.get("activo"):
-            continue
-        user_id = u["user_id"]
-        # Evitar duplicado si el admin ya recibió el aviso simple
-        if user_id in config.ADMIN_IDS:
-            continue
-        try:
-            if es_admin(user_id):
-                await app.bot.send_message(
-                    user_id,
-                    "🟢 <b>Bot reiniciado</b>\n\nMenú principal disponible:",
-                    parse_mode="HTML",
-                    reply_markup=menu_admin(),
-                )
-            else:
-                await app.bot.send_message(
-                    user_id,
-                    "🟢 <b>Bot reiniciado</b>\n\nMenú principal disponible:",
-                    parse_mode="HTML",
-                    reply_markup=menu_usuario(),
-                )
-        except Exception as exc:
-            logger.debug("No se pudo notificar el inicio al usuario %s: %s", user_id, exc)
 
 
 def main():
