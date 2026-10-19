@@ -1464,3 +1464,174 @@ class TestEnriquecerFicha:
         asyncio.run(self._scraper("<html></html>").enriquecer(p))
         assert p.tecnologia == "No especificada"
 
+
+# --------------------------------------------------------------------------
+# Scrapers nuevos: JCGF (WooCommerce), PARTSinn y OEM Seeker (JSON-LD/tabla)
+# --------------------------------------------------------------------------
+
+HTML_JCGF = """
+<html><body><ul class="products">
+<li class="product type-product post-714">
+  <a href="https://www.repuestosautomotrices.com/producto/kit-rectificacion-aveo/"
+     class="woocommerce-LoopProduct-link woocommerce-loop-product__link">
+    <img src="https://www.repuestosautomotrices.com/wp-content/uploads/aveo.webp"/>
+    <h2 class="woocommerce-loop-product__title">Kit Rectificacion Motor Chevrolet AVEO 1.6</h2>
+  </a>
+</li>
+<li class="product type-product post-700">
+  <a href="/producto/faro-delantero-kia-soluto/" class="woocommerce-loop-product__link">
+    <img src="https://www.repuestosautomotrices.com/wp-content/uploads/woocommerce-placeholder.webp"/>
+    <h2 class="woocommerce-loop-product__title">Faro Delantero Kia Soluto</h2>
+  </a>
+</li>
+</ul></body></html>
+"""
+
+HTML_PARTSINN = """
+<html><head>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"ItemPage","url":"https://partsinn.lt/oem/32209483052"},
+ {"@type":"Product","name":"BMW AIRBAG MODULE, DRIVER'S SIDE","sku":"32209483052",
+  "mpn":"32209483052",
+  "offers":{"@type":"AggregateOffer","priceCurrency":"EUR","lowPrice":"1231.15",
+            "highPrice":"1363.34"}}
+]}
+</script></head><body></body></html>
+"""
+
+HTML_OEMSEEKER_FICHA = """
+<html><head>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"Product","name":"Accessory Kit, brake caliper 6 768 188","mpn":"6 768 188",
+  "url":"https://oemseeker.com/oem/6768188"}
+]}
+</script></head><body></body></html>
+"""
+
+HTML_PARTSINN_SIN_OFERTAS = """
+<html><head>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"ItemPage","url":"https://partsinn.lt/oem/_"}
+]}
+</script></head><body><h2>No offers found</h2></body></html>
+"""
+
+HTML_OEMSEEKER_TABLA = """
+<html><body>
+<table class="parts-table"><tbody>
+<tr><th scope="row">Accessory Kit, brake caliper</th>
+  <td><span class="expandable code-links"><a href="/oem/6768188">6 768 188</a></span></td>
+  <td><span class="expandable number-list"><span>TRW ST1431</span></span></td></tr>
+<tr><th scope="row">Disc Brake Pad Set, front axle</th>
+  <td><span class="expandable code-links"><a href="/oem/1234567">1 234 567</a></span></td>
+  <td><span class="expandable number-list"><span>HELLA 8DB</span></span></td></tr>
+</tbody></table></body></html>
+"""
+
+
+class TestJcgf:
+    @staticmethod
+    def _s():
+        from scrapers.ecuador.jcgf import JcgfScraper
+        return JcgfScraper()
+
+    def test_search_url_woocommerce(self):
+        assert self._s().search_url("faro") == \
+            "https://www.repuestosautomotrices.com/?s=faro&post_type=product"
+
+    def test_parse_tarjetas_woo(self):
+        s = self._s()
+        productos = s._parse(HTML_JCGF)
+        assert len(productos) == 2
+        assert productos[0].nombre == "Kit Rectificacion Motor Chevrolet AVEO 1.6"
+        assert productos[0].url == ("https://www.repuestosautomotrices.com"
+                                    "/producto/kit-rectificacion-aveo/")
+        assert productos[1].url == ("https://www.repuestosautomotrices.com"
+                                    "/producto/faro-delantero-kia-soluto/")
+        assert productos[0].sitio == "jcgf" and productos[0].pais == "Ecuador"
+        # Sin precio publicado se devuelve 0 (el agregador los pone al final).
+        assert productos[0].precio_usd == 0.0
+
+    def test_omite_imagen_marcador(self):
+        s = self._s()
+        productos = s._parse(HTML_JCGF)
+        assert productos[0].imagen_url.endswith("aveo.webp")
+        assert productos[1].imagen_url == "", "el placeholder no es una foto"
+
+    def test_no_busca_por_codigo(self):
+        assert self._s().buscar_por_codigo is False
+
+
+class TestPartsinn:
+    @staticmethod
+    def _s():
+        from scrapers.international.partsinn import PartsinnScraper
+        return PartsinnScraper()
+
+    def test_search_url_oem(self):
+        assert self._s().search_url("32209483052") == \
+            "https://partsinn.lt/oem/32209483052"
+
+    def test_parse_ficha_json_ld(self):
+        from scrapers.currency import to_usd
+        s = self._s()
+        productos = s._parse(HTML_PARTSINN)
+        assert len(productos) == 1
+        p = productos[0]
+        assert p.nombre == "BMW AIRBAG MODULE, DRIVER'S SIDE"
+        assert p.codigo == "32209483052"
+        # El nodo Product no trae url: se construye desde el código.
+        assert p.url == "https://partsinn.lt/oem/32209483052"
+        assert p.moneda_original == "EUR"
+        assert p.precio_original == 1231.15
+        assert p.precio_usd == to_usd(1231.15, "EUR")
+        assert p.sitio == "partsinn" and p.pais == "EU"
+
+    def test_sin_ofertas_devuelve_vacio(self):
+        assert self._s()._parse(HTML_PARTSINN_SIN_OFERTAS) == []
+
+
+class TestOemseeker:
+    @staticmethod
+    def _s():
+        from scrapers.international.oemseeker import OemseekerScraper
+        return OemseekerScraper()
+
+    def test_search_url(self):
+        assert self._s().search_url("brake caliper") == \
+            "https://oemseeker.com/search?q=brake+caliper"
+
+    def test_parse_tabla(self):
+        s = self._s()
+        productos = s._parse(HTML_OEMSEEKER_TABLA)
+        assert len(productos) == 2
+        p = productos[0]
+        assert p.nombre == "Accessory Kit, brake caliper"
+        assert p.codigo == "6768188", "el código se muestra sin espacios"
+        assert p.url == "https://oemseeker.com/oem/6768188"
+        assert p.precio_usd == 0.0
+
+    def test_parse_ficha_por_codigo(self):
+        s = self._s()
+        productos = s._parse(HTML_OEMSEEKER_FICHA)
+        assert len(productos) == 1
+        assert productos[0].codigo == "6768188"
+        assert productos[0].url == "https://oemseeker.com/oem/6768188"
+
+    def test_sin_playwright(self):
+        s = self._s()
+        assert s.aiohttp_primero is True
+        assert s.use_playwright is False
+
+
+def test_aggregator_incluye_scrapers_nuevos():
+    agg = SearchAggregator()
+    ecu = [s.SITE_NAME for s in agg.ecuador_scrapers]
+    intl = [s.SITE_NAME for s in agg.international_scrapers]
+    assert "JCGF" in ecu
+    assert "partsinn" in intl
+    assert "oemseeker" in intl
+

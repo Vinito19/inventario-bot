@@ -1,5 +1,6 @@
 """Base común para todos los scrapers de repuestos."""
 import asyncio
+import json
 import logging
 import random
 import re
@@ -587,6 +588,58 @@ class BaseScraper(ABC):
         if meta and meta.get("content"):
             partes.append(meta["content"].strip())
         return " ".join(partes)[:3000]
+
+    @staticmethod
+    def _json_ld_productos(html: str) -> list[dict]:
+        """Productos declarados en JSON-LD (schema.org) de una página.
+
+        Devuelve dicts con nombre, código, url, precio y moneda. Muchos
+        catálogos (Magento, PrestaShop) publican la ficha completa en este
+        bloque, que cambia menos que los selectores de la maqueta. Se acepta
+        la forma suelta (objeto, lista de objetos o todo dentro de @graph).
+        """
+        soup = BeautifulSoup(html, "lxml")
+        productos: list[dict] = []
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string or "")
+            except (TypeError, ValueError):
+                continue
+            for nodo in BaseScraper._iter_json_ld(data):
+                if nodo.get("@type") != "Product":
+                    continue
+                oferta = nodo.get("offers")
+                if isinstance(oferta, list):
+                    oferta = oferta[0] if oferta else None
+                moneda = ""
+                precio = 0.0
+                if isinstance(oferta, dict):
+                    moneda = (oferta.get("priceCurrency") or "").upper()
+                    try:
+                        precio = float(oferta.get("lowPrice") or oferta.get("price"))
+                    except (TypeError, ValueError):
+                        precio = 0.0
+                nombre = str(nodo.get("name") or "").strip()
+                if not nombre:
+                    continue
+                productos.append({
+                    "nombre": nombre,
+                    "codigo": str(nodo.get("mpn") or nodo.get("sku") or "").strip(),
+                    "url": str(nodo.get("url") or "").strip(),
+                    "precio": precio,
+                    "moneda": moneda,
+                })
+        return productos
+
+    @staticmethod
+    def _iter_json_ld(data):
+        if isinstance(data, list):
+            for item in data:
+                yield from BaseScraper._iter_json_ld(item)
+        elif isinstance(data, dict):
+            yield data
+            for valor in data.get("@graph", []):
+                yield from BaseScraper._iter_json_ld(valor)
 
     @staticmethod
     def _build_url(url: str, params: dict[str, Any] | None = None) -> str:

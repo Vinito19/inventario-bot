@@ -3,9 +3,12 @@ import asyncio
 import logging
 
 from scrapers.ecuador.imotriz import ImotrizScraper
+from scrapers.ecuador.jcgf import JcgfScraper
 from scrapers.ecuador.mansuera import MansueraScraper
 from scrapers.international.elmridgea import ElmridgeaScraper
 from scrapers.international.kiauto import KiautoScraper
+from scrapers.international.oemseeker import OemseekerScraper
+from scrapers.international.partsinn import PartsinnScraper
 from scrapers.international.repuestosboston import RepuestosBostonScraper
 from scrapers.models import Product
 
@@ -20,7 +23,7 @@ class SearchAggregator:
         self.ecuador_scrapers = [
             MansueraScraper(),
             ImotrizScraper(),
-            # Agregar más scrapers de Ecuador aquí
+            JcgfScraper(),
         ]
 
         # Scrapers internacionales (fallback).
@@ -34,6 +37,8 @@ class SearchAggregator:
             RepuestosBostonScraper(),
             ElmridgeaScraper(),
             KiautoScraper(),
+            PartsinnScraper(),
+            OemseekerScraper(),
         ]
 
     async def search(self, codigo: str, nombre: str = "") -> dict[str, list[Product]]:
