@@ -53,20 +53,3 @@ def verify_password(password: str, password_hash: str) -> bool:
         return bcrypt.checkpw(password.encode(), password_hash.encode())
     except Exception:
         return False
-
-
-def generate_encryption_key() -> str:
-    """Genera una clave Fernet nueva (para configurar ENCRYPTION_KEY en .env)."""
-    return Fernet.generate_key().decode()
-
-
-# Utilidades para compatibilidad con DB existente
-def migrate_encrypt_existing(field: str) -> str:
-    """Cifra un campo existente si no está ya cifrado (heurística: no es base64 válido de Fernet)."""
-    if not field:
-        return ""
-    try:
-        _get_fernet().decrypt(field.encode())
-        return field  # ya cifrado
-    except Exception:
-        return encrypt_field(field)

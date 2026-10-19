@@ -137,19 +137,6 @@ def menu_detalle_repuesto(codigo: str = ""):
     return InlineKeyboardMarkup(keyboard)
 
 
-def botones_usuario_pendientes(usuarios):
-    keyboard = []
-    for u in usuarios:
-        keyboard.append([
-            InlineKeyboardButton(
-                f"👤 {u['nombre']} ({u['user_id']})",
-                callback_data=generar_callback_token(u['user_id'], "ver_user"),
-            ),
-        ])
-    keyboard.append([InlineKeyboardButton("❌ Volver", callback_data="inicio")])
-    return InlineKeyboardMarkup(keyboard)
-
-
 def botones_admin_aprobar_rechazar(user_id):
     keyboard = [
         [

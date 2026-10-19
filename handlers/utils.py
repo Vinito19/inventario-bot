@@ -148,7 +148,7 @@ def _formatear_resultado(r: dict) -> str:
     return "\n".join(lines).replace("\r", "")
 
 
-def guardar_mensaje(update_or_msg, context, msg):
+def guardar_mensaje(context, msg):
     if msg and hasattr(msg, "message_id"):
         context.user_data.setdefault("msgs", []).append(msg.message_id)
 

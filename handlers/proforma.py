@@ -158,14 +158,14 @@ async def proforma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 filename=f"proforma_{repuesto['codigo']}.pdf",
                 caption=f"📄 Proforma: {repuesto['nombre']} ({repuesto['codigo']})",
             )
-        guardar_mensaje(update, context, doc_msg)
+        guardar_mensaje(context, doc_msg)
 
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text="✅ Proforma generada. Para compartirla: abre el documento → pulsa los 3 puntos (⋮) junto al nombre del archivo a la derecha → Compartir → elige la app (WhatsApp, Signal, correo, etc.)",
             reply_markup=botones_volver(),
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
 
         os.remove(ruta)
     except Exception as e:

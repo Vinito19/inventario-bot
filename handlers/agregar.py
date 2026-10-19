@@ -259,11 +259,11 @@ async def photo_1(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "━━━━━━━━━━━━━━━━━━░░░░░░ 50%",
             reply_markup=botones_volver(),
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return PHOTO_2
 
     msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return PHOTO_1
 
 
@@ -278,11 +278,11 @@ async def photo_2(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "━━━━━━━━━━━━━━━━━━━━━━━━░░ 75%",
             reply_markup=botones_volver(),
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return PHOTO_3
 
     msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return PHOTO_2
 
 
@@ -297,11 +297,11 @@ async def photo_3(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100%",
             reply_markup=botones_volver(),
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return PHOTO_4
 
     msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return PHOTO_3
 
 
@@ -320,11 +320,11 @@ async def photo_4(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "(Ejemplo: detalles, embalaje, etiquetas, etc.)",
             reply_markup=botones,
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return DECIDIR_FOTOS_EXTRA
 
     msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return PHOTO_4
 
 
@@ -363,11 +363,11 @@ async def photo_5(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100%",
             reply_markup=botones_volver(),
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return PHOTO_6
 
     msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return PHOTO_5
 
 
@@ -381,11 +381,11 @@ async def photo_6(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "(Ejemplo: BRK-001)",
             reply_markup=botones_volver(),
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return CODIGO
 
     msg = await update.message.reply_text("⚠️ Debes enviar una imagen. Intenta de nuevo:")
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return PHOTO_6
 
 
@@ -396,7 +396,7 @@ async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         codigo_texto = validar_codigo(update.message.text)
     except ValueError as e:
         msg = await update.message.reply_text(f"⚠️ {e}")
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return CODIGO
 
     existente = obtener_repuesto(codigo_texto)
@@ -405,7 +405,7 @@ async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⚠️ Ya existe un repuesto con el código '{codigo_texto}'.\n"
             f"Intenta con otro código:"
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return CODIGO
 
     context.user_data["codigo"] = codigo_texto
@@ -415,7 +415,7 @@ async def codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"(Ejemplo: Pastillas de freno)",
         reply_markup=botones_volver(),
     )
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return NOMBRE
 
 
@@ -426,7 +426,7 @@ async def nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nombre_texto = validar_nombre_repuesto(update.message.text)
     except ValueError as e:
         msg = await update.message.reply_text(f"⚠️ {e}")
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return NOMBRE
 
     context.user_data["nombre"] = nombre_texto
@@ -436,7 +436,7 @@ async def nombre(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"(Ejemplo: Pastillas cerámicas universales 2020-2024)",
         reply_markup=botones_volver(),
     )
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return DESCRIPCION
 
 
@@ -447,7 +447,7 @@ async def descripcion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         texto = validar_descripcion(update.message.text)
     except ValueError as e:
         msg = await update.message.reply_text(f"⚠️ {e}")
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return DESCRIPCION
 
     context.user_data["descripcion"] = texto
@@ -456,7 +456,7 @@ async def descripcion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "(Solo números)",
         reply_markup=botones_volver(),
     )
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return CANTIDAD
 
 
@@ -466,13 +466,13 @@ async def cantidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     if not texto.isdigit():
         msg = await update.message.reply_text("⚠️ Debes escribir un número entero. Intenta de nuevo:")
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return CANTIDAD
 
     cantidad_val = int(texto)
     if cantidad_val <= 0:
         msg = await update.message.reply_text("⚠️ La cantidad debe ser mayor que cero. Intenta de nuevo:")
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return CANTIDAD
 
     context.user_data["cantidad"] = cantidad_val
@@ -482,7 +482,7 @@ async def cantidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"(Ejemplo: 185.00)",
         reply_markup=botones_volver(),
     )
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return PRECIO
 
 
@@ -494,7 +494,7 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         precio_valor = float(texto)
     except ValueError:
         msg = await update.message.reply_text("⚠️ Debes escribir un número válido. Intenta de nuevo:")
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return PRECIO
 
     context.user_data["precio"] = precio_valor
@@ -504,7 +504,7 @@ async def precio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"(Ejemplo: Estante A-3)",
         reply_markup=botones_volver(),
     )
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return UBICACION
 
 
@@ -515,7 +515,7 @@ async def ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         texto = validar_ubicacion(update.message.text)
     except ValueError as e:
         msg = await update.message.reply_text(f"⚠️ {e}")
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
         return UBICACION
     context.user_data["ubicacion"] = texto
 

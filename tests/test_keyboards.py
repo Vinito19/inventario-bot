@@ -8,7 +8,6 @@ if ROOT not in sys.path:
 from keyboards import (
     botones_admin_aprobar_rechazar,
     botones_detalle_usuario,
-    botones_usuario_pendientes,
     botones_usuarios,
     botones_volver,
     menu_admin,
@@ -140,12 +139,7 @@ def test_menu_detalle_repuesto():
     assert "inicio" in datas
 
 
-def test_botones_usuario_pendientes():
-    pend = [{"nombre": "Juan", "user_id": 111}]
-    m = botones_usuario_pendientes(pend)
-    datas = _extract_data(m)
-    bases = [_extract_base(d) for d in datas]
-    assert "ver_user_111" in bases
+
 
 
 def test_botones_admin_aprobar_rechazar():

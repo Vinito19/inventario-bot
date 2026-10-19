@@ -84,20 +84,6 @@ class PDFProforma(FPDF):
         self.set_xy(120, 16.5)
         self.cell(76, 5, config.ahora().strftime("Fecha: %d/%m/%Y"), align="R")
 
-    def footer(self):
-        # Pie de pagina con ondas fluidas
-        self.set_fill_color(*CELESTE_CLARO)
-        self.rect(0, 274, PAGE_W, PAGE_H - 274, style="F")
-        _wave_bottom(self, 281, 3, 26, 2.1, CELESTE)
-        _wave_bottom(self, 287, 3.2, 22, 0.6, CELESTE_OSCURO)
-
-        self.set_text_color(*BLANCO)
-        self.set_xy(0, 284)
-        self.set_font("helvetica", "I", 8)
-        self.cell(PAGE_W, 5, "Documento informativo - precios sujetos a confirmacion", align="C")
-        self.set_xy(0, 291)
-        self.cell(PAGE_W, 4, f"Pagina {self.page_no()}/{{nb}}", align="C")
-
     def _seccion(self, y, titulo):
         self.set_xy(14, y)
         self.set_fill_color(*CELESTE)

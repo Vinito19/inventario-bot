@@ -155,7 +155,7 @@ async def search_local(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["termino"] = termino
 
     msg = await update.message.reply_text(texto, reply_markup=menu_resultados(resultados))
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
     return VIEW_ITEM
 
 
@@ -282,13 +282,13 @@ async def _mostrar_detalle(query, context, update, data):
             media=[InputMediaPhoto(media=f) for f in fotos],
         )
         for m in media_msgs:
-            guardar_mensaje(update, context, m)
+            guardar_mensaje(context, m)
         msg = await context.bot.send_message(
             chat_id=query.message.chat_id,
             text=texto,
             reply_markup=markup,
         )
-        guardar_mensaje(update, context, msg)
+        guardar_mensaje(context, msg)
     except Exception as exc:
         logger.warning("No se pudieron enviar las fotos del repuesto %s: %s", repuesto["codigo"], exc)
         await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=markup)

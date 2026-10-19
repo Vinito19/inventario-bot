@@ -77,7 +77,7 @@ async def start_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("🏠 Volver al menú", callback_data="inicio")])
 
     msg = await update.message.reply_text(texto, reply_markup=InlineKeyboardMarkup(keyboard))
-    guardar_mensaje(update, context, msg)
+    guardar_mensaje(context, msg)
 
 
 async def callback_reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -152,7 +152,7 @@ async def exportar_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 document=f,
                 caption="Inventario exportado correctamente",
             )
-        guardar_mensaje(update, context, doc_msg)
+        guardar_mensaje(context, doc_msg)
         await edit_mensaje(query, "Archivo Excel enviado!", reply_markup=botones_volver())
     except Exception as e:
         await edit_mensaje(
@@ -260,7 +260,7 @@ async def exportar_ventas(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 document=f,
                 caption="Reporte de ventas",
             )
-        guardar_mensaje(update, context, doc_msg)
+        guardar_mensaje(context, doc_msg)
         await edit_mensaje(query, "Archivo de ventas enviado!", reply_markup=botones_volver())
     except Exception as e:
         await edit_mensaje(query, f"Error al generar ventas: {e!s}", reply_markup=botones_volver())
@@ -332,7 +332,7 @@ async def exportar_cambios(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 document=f,
                 caption="🛠️ Reporte de cambios de edición",
             )
-        guardar_mensaje(update, context, doc_msg)
+        guardar_mensaje(context, doc_msg)
         await edit_mensaje(query, "✅ Archivo de cambios enviado!", reply_markup=botones_volver())
     except Exception as e:
         await edit_mensaje(query, f"❌ Error al generar cambios: {e!s}", reply_markup=botones_volver())
@@ -598,7 +598,7 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
                 document=f,
                 caption=f"Ventas {anio}-{mes:02d}",
             )
-        guardar_mensaje(update, context, doc_msg)
+        guardar_mensaje(context, doc_msg)
         await edit_mensaje(query, "Archivo enviado!", reply_markup=botones_volver())
         os.remove(ruta)
     except Exception as e:
@@ -670,7 +670,7 @@ async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYP
                 document=f,
                 caption=f"Cambios {anio}-{mes:02d}",
             )
-        guardar_mensaje(update, context, doc_msg)
+        guardar_mensaje(context, doc_msg)
         await edit_mensaje(query, "Archivo enviado!", reply_markup=botones_volver())
         os.remove(ruta)
     except Exception as e:
