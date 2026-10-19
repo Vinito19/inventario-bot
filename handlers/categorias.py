@@ -154,13 +154,9 @@ async def confirmar_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "categorias":
         return await callback_categorias(update, context)
 
-    # Paginación
+    # Paginación: callback_categorias maneja la página
     if data.startswith("eliminar_cat_page_"):
-        try:
-            page = int(data.replace("eliminar_cat_page_", ""))
-        except ValueError:
-            page = 0
-        return await callback_categorias(update, context)  # callback_categorias maneja la página
+        return await callback_categorias(update, context)
 
     await query.answer()
 

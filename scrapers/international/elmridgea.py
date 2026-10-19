@@ -64,7 +64,6 @@ class ElmridgeaScraper(BaseScraper):
         gtin = ""
         url_producto = ""
         imagen = ""
-        disponible = True
 
         for script in soup.find_all("script", type="application/ld+json"):
             try:
@@ -88,7 +87,6 @@ class ElmridgeaScraper(BaseScraper):
                 sku = str(datos.get("sku", "")).strip()
                 gtin = str(datos.get("gtin13", "")).strip()
                 imagen = datos.get("image", "") or imagen
-                disponible = offers.get("availability", "").endswith("InStock")
                 break
 
         if precio_original <= 0:

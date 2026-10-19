@@ -544,7 +544,6 @@ async def exportar_ventas_mes(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         from database import obtener_ventas_por_fecha
         from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
         ventas = obtener_ventas_por_fecha(fecha_inicio, fecha_fin)
 
@@ -625,7 +624,6 @@ async def exportar_cambios_mes(update: Update, context: ContextTypes.DEFAULT_TYP
 
     try:
         from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
         cambios = obtener_cambios_por_fecha(fecha_inicio, fecha_fin)
 

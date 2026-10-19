@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, time
+from datetime import time
 from zoneinfo import ZoneInfo
 
 import config

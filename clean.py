@@ -9,7 +9,6 @@ Uso:
     python clean.py --all        # Todo (default)
 """
 
-import os
 import sys
 import argparse
 import shutil
@@ -27,14 +26,6 @@ PATTERNS = {
     "logos": ["mockup_proforma.*"],
     "cache": ["__pycache__", ".pytest_cache", ".mypy_cache"],
 }
-
-
-def find_files(patterns):
-    """Encuentra archivos que coinciden con los patrones."""
-    found = []
-    for pattern in patterns:
-        found.extend(ROOT.rglob(pattern))
-    return found
 
 
 def clean_patterns(patterns, dry_run=False):

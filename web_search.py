@@ -18,7 +18,6 @@ import os
 from pathlib import Path
 from urllib.parse import quote_plus
 from typing import Optional, List, Dict, Any
-from dataclasses import dataclass
 from collections import defaultdict
 
 import aiohttp
@@ -28,7 +27,6 @@ from scrapers.aggregator import SearchAggregator
 
 # ─── Validación y sanitización de entrada ───────────────────────────────
 CODIGO_PATTERN = re.compile(r'^[a-zA-Z0-9\-\.]{1,50}$')
-NOMBRE_PATTERN = re.compile(r'^[a-zA-Z0-9\s\-\.\,\/]{0,100}$')
 
 
 def validar_codigo_busqueda(codigo: str) -> str:
@@ -245,14 +243,6 @@ def _normalizar_lado(lado: str) -> str:
         return "Trasero"
     return lado.capitalize()
 
-
-def _limpiar_valor(valor: str) -> str:
-    # Normalizar separadores de miles/decimales
-    valor = valor.replace(".", "").replace(",", ".")
-    try:
-        return f"{float(valor):.2f}"
-    except ValueError:
-        return valor
 
 # ─── Búsqueda por motor ───────────────────────────────────────────────
 async def _buscar_en_motor(session: aiohttp.ClientSession, engine: dict, query: str) -> List[str]:

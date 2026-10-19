@@ -98,18 +98,6 @@ class MansueraScraper(BaseScraper):
         return datos if isinstance(datos, dict) else {}
 
     @staticmethod
-    def _contenedor_producto(link):
-        """Sube desde el enlace hasta la tarjeta que lo contiene."""
-        nodo = link.parent
-        for _ in range(6):
-            if nodo is None or nodo.name is None or nodo.name == "body":
-                return None
-            if nodo.name == "div" and "item" in (nodo.get("class") or []):
-                return nodo
-            nodo = nodo.parent
-        return None
-
-    @staticmethod
     def _nombre_producto(card, link) -> str:
         # El nombre está en el `title` del enlace y en el bloque "Repuesto".
         if link.get("title"):

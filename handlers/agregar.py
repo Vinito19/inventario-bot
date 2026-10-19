@@ -602,19 +602,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-async def callback_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await eliminar_fotos(context, query.message.chat_id)
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="❌ Operación cancelada.",
-        reply_markup=botones_volver(),
-    )
-    context.user_data.clear()
-    return ConversationHandler.END
-
-
 agregar_handler = ConversationHandler(
     entry_points=[
         CommandHandler("agregar", start_agregar),

@@ -121,7 +121,6 @@ async def _acceso_directo(update: Update, context: ContextTypes.DEFAULT_TYPE, us
 
 async def reg_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.message.text.strip()
-    user_id = update.effective_user.id
 
     # Validación básica
     if not username or len(username) < 3:

@@ -47,8 +47,6 @@ class ImotrizScraper(BaseScraper):
     # incluye (el catálogo está indexado por vehículo).
     degradar_consulta = True
     max_consultas_respaldo = 2
-    # El catálogo de iMotriz cotiza bajo pedido: no se puede obtener precio.
-    TIENE_PRECIO = False
 
     def search_url(self, query: str) -> str:
         return f"{self.BASE_URL}/catalogo/page/results?search={quote_plus(query)}"

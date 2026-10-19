@@ -1,5 +1,4 @@
 """Módulo de seguridad: cifrado de campos sensibles y hash de contraseñas."""
-import os
 import bcrypt
 from cryptography.fernet import Fernet
 from typing import Optional
