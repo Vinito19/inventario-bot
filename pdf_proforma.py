@@ -218,6 +218,18 @@ def generar_proforma(repuesto, fotos_paths):
                 _fit_image(pdf, restantes[1], 10, y_bot, half_w, h_bot)
                 _fit_image(pdf, restantes[2], 10 + half_w + gap, y_bot, half_w, h_bot)
 
+        if len(fotos) > 4:
+            # === PAGINA 3: fotos extra (5 y 6) ===
+            pdf.add_page()
+            y_seccion3 = 58
+            pdf._seccion(y_seccion3, "FOTOS ADICIONALES")
+            y3 = y_seccion3 + 12
+            extras = fotos[4:7]
+            h_each = (265.0 - y3 - gap) / 2
+            _fit_image(pdf, extras[0], 10, y3, 190.0, h_each)
+            if len(extras) > 1:
+                _fit_image(pdf, extras[1], 10, y3 + h_each + gap, 190.0, h_each)
+
     # ---- Guardar ----
     timestamp = config.ahora().strftime("%Y%m%d_%H%M%S")
     filename = f"proforma_{repuesto['codigo']}_{timestamp}.pdf"

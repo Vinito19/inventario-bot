@@ -28,14 +28,14 @@ def encrypt_field(value: str) -> str:
 
 
 def decrypt_field(encrypted: str) -> str:
-    """Descifra un campo sensible."""
+    """Descifra un campo sensible; si no es un token valido, lo devuelve tal cual (valor legacy)."""
     if not encrypted:
         return ""
     f = _get_fernet()
     try:
         return f.decrypt(encrypted.encode()).decode()
     except Exception:
-        return ""
+        return encrypted
 
 
 def hash_password(password: str) -> str:

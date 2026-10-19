@@ -362,6 +362,15 @@ def test_obtener_usuarios_descifra_y_detecta_username():
     assert database.existe_username("no_existe_xyz") is False
 
 
+def test_decrypt_fallback_para_valores_legacy_sin_cifrar():
+    from security import decrypt_field, encrypt_field
+
+    assert decrypt_field("") == ""
+    assert decrypt_field(encrypt_field("Carlos")) == "Carlos"
+    # Un nombre sin cifrar (registro anterior a la encriptacion) no se pierde
+    assert decrypt_field("Carlos") == "Carlos"
+
+
 # ---------- Límite de intentos de login ----------
 
 @pytest.mark.asyncio

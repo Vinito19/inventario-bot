@@ -62,6 +62,23 @@ def test_generar_proforma_con_4_fotos(tmp_img, tmp_img_vertical):
             os.remove(ruta)
 
 
+def test_generar_proforma_con_6_fotos_incluye_pagina_extra(tmp_img, tmp_img_vertical):
+    """Las fotos extra (5 y 6) deben salir en una pagina adicional."""
+    from pdf_proforma import generar_proforma
+
+    fotos = [tmp_img, tmp_img_vertical, tmp_img, tmp_img_vertical, tmp_img, tmp_img_vertical]
+    ruta = generar_proforma(_nuevo_repuesto(), fotos)
+    try:
+        with open(ruta, "rb") as f:
+            contenido = f.read()
+        assert _es_pdf(ruta)
+        n_pages = len(re.findall(rb"/Type\s*/Page\b", contenido))
+        assert n_pages >= 3          # foto principal + 2-4 + extra
+    finally:
+        if os.path.exists(ruta):
+            os.remove(ruta)
+
+
 def test_generar_proforma_rutas_inexistentes():
     from pdf_proforma import generar_proforma
 

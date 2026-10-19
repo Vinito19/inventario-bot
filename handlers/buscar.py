@@ -271,7 +271,7 @@ async def _mostrar_detalle(query, context, update, data):
     markup = menu_detalle_repuesto(repuesto['codigo'])
     context.user_data["repuesto_compartir"] = repuesto
 
-    fotos = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
+    fotos = [repuesto[f"file_id_{n}"] for n in range(1, 7) if repuesto[f"file_id_{n}"]]
     if not fotos:
         await edit_mensaje(query, texto, reply_markup=markup)
         return

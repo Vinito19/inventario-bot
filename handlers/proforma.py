@@ -135,7 +135,7 @@ async def proforma_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_mensaje(query, "❌ No hay repuesto seleccionado.", reply_markup=botones_volver())
         return ConversationHandler.END
 
-    file_ids = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
+    file_ids = [repuesto[f"file_id_{n}"] for n in range(1, 7) if repuesto[f"file_id_{n}"]]
     if not file_ids:
         await edit_mensaje(query, "❌ El repuesto no tiene fotos.", reply_markup=botones_volver())
         return ConversationHandler.END
