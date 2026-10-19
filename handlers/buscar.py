@@ -1,4 +1,5 @@
 import html
+import logging
 import re
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
@@ -27,6 +28,8 @@ from keyboards import (
     menu_detalle_repuesto,
     menu_resultados,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _escape(text: str) -> str:
@@ -219,49 +222,7 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await proforma_callback(update, context)
 
     if data.startswith("ver_"):
-        idx = int(data.replace("ver_", "")) - 1
-        resultados = context.user_data.get("resultados", [])
-        if 0 <= idx < len(resultados):
-            repuesto = obtener_repuesto(resultados[idx]["codigo"])
-            if not repuesto:
-                await edit_mensaje(query, "❌ Repuesto no encontrado.", reply_markup=botones_volver())
-                return VIEW_ITEM
-
-            texto = (
-                f"🏷️ {repuesto['codigo']} - {repuesto['nombre']}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"📂 Categoría: {repuesto['categoria_nombre'] or 'Sin categoría'}\n"
-                f"📝 Descripción: {repuesto['descripcion']}\n"
-                f"📦 Cantidad: {repuesto['cantidad']}\n"
-                f"💰 Precio: ${repuesto['precio']:.2f}\n"
-                f"📍 Ubicación: {repuesto['ubicacion'] or 'Sin ubicación'}"
-            )
-
-            fotos = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
-
-            if fotos:
-                chat_id = query.message.chat_id
-                try:
-                    media_msgs = await context.bot.send_media_group(
-                        chat_id=chat_id,
-                        media=[InputMediaPhoto(media=f) for f in fotos],
-                    )
-                    for m in media_msgs:
-                        guardar_mensaje(update, context, m)
-                    context.user_data["repuesto_compartir"] = repuesto
-                    msg = await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=texto,
-                        reply_markup=menu_detalle_repuesto(repuesto['codigo']),
-                    )
-                    guardar_mensaje(update, context, msg)
-                except Exception:
-                    context.user_data["repuesto_compartir"] = repuesto
-                    msg = await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=menu_detalle_repuesto(repuesto['codigo']))
-            else:
-                context.user_data["repuesto_compartir"] = repuesto
-                await edit_mensaje(query, texto, reply_markup=menu_detalle_repuesto(repuesto['codigo']))
-
+        await _mostrar_detalle(query, context, update, data)
         return VIEW_ITEM
 
     if data == "buscar_web":
@@ -284,6 +245,53 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SEARCH_LOCAL
 
     return VIEW_ITEM
+
+
+async def _mostrar_detalle(query, context, update, data):
+    """Muestra el detalle de un resultado (con fotos si las tiene)."""
+    idx = int(data.replace("ver_", "")) - 1
+    resultados = context.user_data.get("resultados", [])
+    if not (0 <= idx < len(resultados)):
+        return
+
+    repuesto = obtener_repuesto(resultados[idx]["codigo"])
+    if not repuesto:
+        await edit_mensaje(query, "❌ Repuesto no encontrado.", reply_markup=botones_volver())
+        return
+
+    texto = (
+        f"🏷️ {repuesto['codigo']} - {repuesto['nombre']}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📂 Categoría: {repuesto['categoria_nombre'] or 'Sin categoría'}\n"
+        f"📝 Descripción: {repuesto['descripcion']}\n"
+        f"📦 Cantidad: {repuesto['cantidad']}\n"
+        f"💰 Precio: ${repuesto['precio']:.2f}\n"
+        f"📍 Ubicación: {repuesto['ubicacion'] or 'Sin ubicación'}"
+    )
+    markup = menu_detalle_repuesto(repuesto['codigo'])
+    context.user_data["repuesto_compartir"] = repuesto
+
+    fotos = [repuesto[f"file_id_{n}"] for n in range(1, 5) if repuesto[f"file_id_{n}"]]
+    if not fotos:
+        await edit_mensaje(query, texto, reply_markup=markup)
+        return
+
+    try:
+        media_msgs = await context.bot.send_media_group(
+            chat_id=query.message.chat_id,
+            media=[InputMediaPhoto(media=f) for f in fotos],
+        )
+        for m in media_msgs:
+            guardar_mensaje(update, context, m)
+        msg = await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=texto,
+            reply_markup=markup,
+        )
+        guardar_mensaje(update, context, msg)
+    except Exception as exc:
+        logger.warning("No se pudieron enviar las fotos del repuesto %s: %s", repuesto["codigo"], exc)
+        await edit_mensaje(query, texto + "\n\n⚠️ No se pudieron enviar las fotos.", reply_markup=markup)
 
 
 async def cancel_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):

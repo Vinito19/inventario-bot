@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
@@ -35,7 +35,6 @@ async def start_categorias(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     if not categorias:
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = [
             [InlineKeyboardButton("➕ Agregar categoría", callback_data="nueva_categoria")],
             [InlineKeyboardButton("❌ Volver", callback_data="inicio")],
@@ -54,7 +53,6 @@ async def start_categorias(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     texto += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     keyboard = [
         [InlineKeyboardButton("➕ Agregar categoría", callback_data="nueva_categoria")],
     ]
@@ -95,7 +93,6 @@ async def callback_categorias(update: Update, context: ContextTypes.DEFAULT_TYPE
         return ConversationHandler.END
 
     if not categorias:
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = [
             [InlineKeyboardButton("➕ Agregar categoría", callback_data="nueva_categoria")],
             [InlineKeyboardButton("❌ Volver", callback_data="inicio")],
@@ -158,18 +155,13 @@ async def confirmar_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "inicio":
         return await finalizar(update, context)
 
-    if data == "categorias":
-        return await callback_categorias(update, context)
-
-    # Paginación: callback_categorias maneja la página
-    if data.startswith("eliminar_cat_page_"):
+    if data == "categorias" or data.startswith("eliminar_cat_page_"):
         return await callback_categorias(update, context)
 
     await query.answer()
 
     if data == "nueva_categoria":
-        user_id = query.from_user.id
-        if not es_admin(user_id):
+        if not es_admin(query.from_user.id):
             await edit_mensaje(query, "❌ Solo el administrador puede agregar categorías.")
             return ConversationHandler.END
 
@@ -181,64 +173,68 @@ async def confirmar_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ADD_CATEGORY
 
     if data.startswith("eliminar_cat_"):
-        user_id = query.from_user.id
-        if not es_admin(user_id):
-            await edit_mensaje(query, "❌ Solo el administrador puede eliminar categorías.")
-            return ConversationHandler.END
-
-        cat_id = int(data.replace("eliminar_cat_", ""))
-
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Sí, eliminar", callback_data=f"confirmar_eliminar_cat_{cat_id}"),
-                InlineKeyboardButton("❌ No, cancelar", callback_data="categorias"),
-            ]
-        ]
-
-        await edit_mensaje(
-            query,
-            "⚠️ ¿Eliminar esta categoría?\n\n"
-            "Los repuestos asignados quedarán sin categoría.",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-        return CONFIRMAR_DELETE
+        return await _pedir_confirmacion_eliminar(query, data)
 
     if data.startswith("confirmar_eliminar_cat_"):
-        user_id = query.from_user.id
-        if not es_admin(user_id):
-            await edit_mensaje(query, "❌ Solo el administrador puede eliminar categorías.")
-            return ConversationHandler.END
-
-        cat_id = int(data.replace("confirmar_eliminar_cat_", ""))
-        try:
-            existente = obtener_categorias()
-            cat_valida = any(c["id"] == cat_id for c in existente)
-            if not cat_valida:
-                await edit_mensaje(
-                    query,
-                    "❌ La categoría ya fue eliminada.",
-                    reply_markup=botones_volver(),
-                )
-                return ConversationHandler.END
-            eliminar_categoria(cat_id)
-            await edit_mensaje(query, "✅ Categoría eliminada.")
-
-            categorias = obtener_categorias()
-            if categorias:
-                texto = "📂 CATEGORÍAS:\n\n"
-                for i, cat in enumerate(categorias, 1):
-                    texto += f"{i}. {cat['nombre']}\n"
-                await edit_mensaje(query, texto, reply_markup=botones_volver())
-            else:
-                await edit_mensaje(
-                    query, "📂 No hay categorías.", reply_markup=botones_volver()
-                )
-        except Exception as e:
-            await edit_mensaje(query, f"❌ Error al eliminar: {e}", reply_markup=botones_volver())
-        return ConversationHandler.END
+        return await _ejecutar_eliminacion(query, data)
 
     return CONFIRMAR_DELETE
+
+
+async def _pedir_confirmacion_eliminar(query, data):
+    """Pide confirmación para borrar una categoría (solo admin)."""
+    if not es_admin(query.from_user.id):
+        await edit_mensaje(query, "❌ Solo el administrador puede eliminar categorías.")
+        return ConversationHandler.END
+
+    cat_id = int(data.replace("eliminar_cat_", ""))
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Sí, eliminar", callback_data=f"confirmar_eliminar_cat_{cat_id}"),
+            InlineKeyboardButton("❌ No, cancelar", callback_data="categorias"),
+        ]
+    ]
+    await edit_mensaje(
+        query,
+        "⚠️ ¿Eliminar esta categoría?\n\n"
+        "Los repuestos asignados quedarán sin categoría.",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+    return CONFIRMAR_DELETE
+
+
+async def _ejecutar_eliminacion(query, data):
+    """Elimina la categoría confirmada (solo admin) y muestra el listado restante."""
+    if not es_admin(query.from_user.id):
+        await edit_mensaje(query, "❌ Solo el administrador puede eliminar categorías.")
+        return ConversationHandler.END
+
+    cat_id = int(data.replace("confirmar_eliminar_cat_", ""))
+    try:
+        if not any(c["id"] == cat_id for c in obtener_categorias()):
+            await edit_mensaje(
+                query,
+                "❌ La categoría ya fue eliminada.",
+                reply_markup=botones_volver(),
+            )
+            return ConversationHandler.END
+
+        eliminar_categoria(cat_id)
+        await edit_mensaje(query, "✅ Categoría eliminada.")
+
+        categorias = obtener_categorias()
+        if categorias:
+            texto = "📂 CATEGORÍAS:\n\n"
+            for i, cat in enumerate(categorias, 1):
+                texto += f"{i}. {cat['nombre']}\n"
+            await edit_mensaje(query, texto, reply_markup=botones_volver())
+        else:
+            await edit_mensaje(
+                query, "📂 No hay categorías.", reply_markup=botones_volver()
+            )
+    except Exception as e:
+        await edit_mensaje(query, f"❌ Error al eliminar: {e}", reply_markup=botones_volver())
+    return ConversationHandler.END
 
 
 categorias_handler = ConversationHandler(

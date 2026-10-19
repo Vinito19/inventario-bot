@@ -243,104 +243,16 @@ async def edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return EDIT_VALUE
 
     if campo == "cantidad" and query and data and data.startswith("cant_"):
-        valor_str = data.replace("cant_", "")
-        if valor_str == "custom":
-            await edit_mensaje(
-                query,
-                f"📦 Stock actual: {repuesto['cantidad']}\n\n"
-                f"📝 Escribe la cantidad exacta:",
-                reply_markup=botones_volver(),
-            )
-            return EDIT_VALUE
-
-        try:
-            delta = int(valor_str)
-        except ValueError:
-            await edit_mensaje(query, "⚠️ Valor no valido.", reply_markup=botones_volver())
-            return EDIT_VALUE
-        nueva_cantidad = repuesto["cantidad"] + delta
-        nueva_cantidad = max(nueva_cantidad, 0)
-
-        context.user_data["nuevo_valor"] = nueva_cantidad
-        await edit_mensaje(
-            query,
-            f"📦 Stock actual: {repuesto['cantidad']}\n"
-            f"📈 Cambio: {'+' if delta > 0 else ''}{delta}\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"📦 Stock nuevo: {nueva_cantidad}\n\n"
-            f"¿Confirmar cambio?",
-            reply_markup=menu_confirmar(),
-        )
-        return CONFIRMAR
+        return await _cantidad_desde_callback(query, context, repuesto, data)
 
     if update.message and update.message.text:
-        texto = update.message.text.strip()
-
-        if campo in ("categoria_id", "fotos"):
-            await update.message.reply_text("⚠️ Usa los botones para seleccionar este campo.")
-            return EDIT_VALUE
-
-        if campo == "cantidad":
-            if not texto.isdigit():
-                await update.message.reply_text("⚠️ Debe ser un numero entero. Intenta de nuevo:")
-                return EDIT_VALUE
-            nueva_cantidad = int(texto)
-            context.user_data["nuevo_valor"] = nueva_cantidad
-        elif campo == "precio":
-            try:
-                nuevo_precio = float(texto)
-            except ValueError:
-                await update.message.reply_text("⚠️ Debe ser un numero valido. Intenta de nuevo:")
-                return EDIT_VALUE
-            context.user_data["nuevo_valor"] = nuevo_precio
-        elif campo == "nombre" or campo == "ubicacion" or campo == "descripcion":
-            if not texto:
-                await update.message.reply_text("⚠️ El valor no puede estar vacio. Intenta de nuevo:")
-                return EDIT_VALUE
-            context.user_data["nuevo_valor"] = texto
-        else:
-            context.user_data["nuevo_valor"] = texto
-
-        valor_anterior = repuesto[campo]
-        if campo == "categoria_id":
-            valor_anterior = repuesto["categoria_nombre"] or "Sin categoria"
-
-        await update.message.reply_text(
-            f"📝 Campo: {campo}\n"
-            f"Valor anterior: {valor_anterior}\n"
-            f"Valor nuevo: {context.user_data['nuevo_valor']}\n\n"
-            f"¿Confirmar cambio?",
-            reply_markup=menu_confirmar(),
-        )
-        return CONFIRMAR
+        return await _valor_desde_texto(update, context, repuesto, campo)
 
     if campo == "fotos" and update.message and (update.message.photo or update.message.document):
-        if update.message.photo:
-            file_id = update.message.photo[-1].file_id
-        else:
-            file_id = update.message.document.file_id
-        fotos = context.user_data["fotos_nuevas"]
-        fotos.append(file_id)
-
-        num = len(fotos)
-        if num < 4:
-            await update.message.reply_text(
-                f"✅ Foto {num} recibida\n\n"
-                f"📷 Foto {num + 1} de 4:",
-                reply_markup=botones_volver(),
-            )
-            return EDIT_VALUE
-        else:
-            context.user_data["nuevo_valor"] = fotos
-            await update.message.reply_text(
-                "✅ 4 fotos actualizadas\n\n¿Confirmar cambio?",
-                reply_markup=menu_confirmar(),
-            )
-            return CONFIRMAR
+        return await _foto_recibida(update, context)
 
     if query and data and data.startswith("cat_"):
-        cat_id = int(data.replace("cat_", ""))
-        context.user_data["nuevo_valor"] = cat_id
+        context.user_data["nuevo_valor"] = int(data.replace("cat_", ""))
         await edit_mensaje(
             query,
             "✅ Categoría actualizada\n\n¿Confirmar cambio?",
@@ -357,6 +269,106 @@ async def edit_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ADD_CAT_NAME
 
     return EDIT_VALUE
+
+
+async def _cantidad_desde_callback(query, context, repuesto, data):
+    """Ajusta el stock con un delta (+N/-N) elegido por botón. Devuelve el estado."""
+    valor_str = data.replace("cant_", "")
+    if valor_str == "custom":
+        await edit_mensaje(
+            query,
+            f"📦 Stock actual: {repuesto['cantidad']}\n\n"
+            f"📝 Escribe la cantidad exacta:",
+            reply_markup=botones_volver(),
+        )
+        return EDIT_VALUE
+
+    try:
+        delta = int(valor_str)
+    except ValueError:
+        await edit_mensaje(query, "⚠️ Valor no valido.", reply_markup=botones_volver())
+        return EDIT_VALUE
+
+    nueva_cantidad = max(repuesto["cantidad"] + delta, 0)
+    context.user_data["nuevo_valor"] = nueva_cantidad
+    await edit_mensaje(
+        query,
+        f"📦 Stock actual: {repuesto['cantidad']}\n"
+        f"📈 Cambio: {'+' if delta > 0 else ''}{delta}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📦 Stock nuevo: {nueva_cantidad}\n\n"
+        f"¿Confirmar cambio?",
+        reply_markup=menu_confirmar(),
+    )
+    return CONFIRMAR
+
+
+async def _valor_desde_texto(update: Update, context: ContextTypes.DEFAULT_TYPE, repuesto, campo):
+    """Valida el texto escrito por el usuario y lo guarda como nuevo valor."""
+    texto = update.message.text.strip()
+
+    if campo in ("categoria_id", "fotos"):
+        await update.message.reply_text("⚠️ Usa los botones para seleccionar este campo.")
+        return EDIT_VALUE
+
+    if campo == "cantidad":
+        if not texto.isdigit():
+            await update.message.reply_text("⚠️ Debe ser un numero entero. Intenta de nuevo:")
+            return EDIT_VALUE
+        context.user_data["nuevo_valor"] = int(texto)
+    elif campo == "precio":
+        try:
+            nuevo_precio = float(texto)
+        except ValueError:
+            await update.message.reply_text("⚠️ Debe ser un numero valido. Intenta de nuevo:")
+            return EDIT_VALUE
+        context.user_data["nuevo_valor"] = nuevo_precio
+    elif campo in ("nombre", "ubicacion", "descripcion"):
+        if not texto:
+            await update.message.reply_text("⚠️ El valor no puede estar vacio. Intenta de nuevo:")
+            return EDIT_VALUE
+        context.user_data["nuevo_valor"] = texto
+    else:
+        context.user_data["nuevo_valor"] = texto
+
+    valor_anterior = repuesto[campo]
+    if campo == "categoria_id":
+        valor_anterior = repuesto["categoria_nombre"] or "Sin categoria"
+
+    await update.message.reply_text(
+        f"📝 Campo: {campo}\n"
+        f"Valor anterior: {valor_anterior}\n"
+        f"Valor nuevo: {context.user_data['nuevo_valor']}\n\n"
+        f"¿Confirmar cambio?",
+        reply_markup=menu_confirmar(),
+    )
+    return CONFIRMAR
+
+
+async def _foto_recibida(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Acumula una foto nueva; a la cuarta pasa a confirmar."""
+    if update.message.photo:
+        file_id = update.message.photo[-1].file_id
+    else:
+        file_id = update.message.document.file_id
+    fotos = context.user_data["fotos_nuevas"]
+    fotos.append(file_id)
+
+    num = len(fotos)
+    if num < 4:
+        await update.message.reply_text(
+            f"✅ Foto {num} recibida\n\n"
+            f"📷 Foto {num + 1} de 4:",
+            reply_markup=botones_volver(),
+        )
+        return EDIT_VALUE
+
+    context.user_data["nuevo_valor"] = fotos
+    await update.message.reply_text(
+        "✅ 4 fotos actualizadas\n\n¿Confirmar cambio?",
+        reply_markup=menu_confirmar(),
+    )
+    return CONFIRMAR
 
 
 async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):

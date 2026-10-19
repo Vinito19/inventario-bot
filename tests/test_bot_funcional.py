@@ -614,3 +614,92 @@ async def test_resumen_inventario_consistente(entorn, admin_registrado, nuevo_re
     assert ventas["ventas"] == 1
     assert ventas["unidades"] == 2
     assert ventas["total"] == 20.0
+
+
+# ================= 9. EDICIÓN DE VALOR (edit_value) =================
+
+def _ctx_edicion(entorn, campo, **repuesto):
+    ctx = entorn.context
+    base = {"codigo": "X", "nombre": "Viejo", "cantidad": 3, "precio": 10.0,
+            "descripcion": "d", "categoria_nombre": "Frenos"}
+    base.update(repuesto)
+    ctx.user_data = {"repuesto": base, "campo": campo}
+    return ctx
+
+
+@pytest.mark.asyncio
+async def test_edit_value_texto_nombre(entorn):
+    from handlers import editar as ed
+
+    ctx = _ctx_edicion(entorn, "nombre")
+    assert await ed.edit_value(entorn.texto("Nuevo"), ctx) == ed.CONFIRMAR
+    assert ctx.user_data["nuevo_valor"] == "Nuevo"
+
+
+@pytest.mark.asyncio
+async def test_edit_value_precio_invalido_no_avanza(entorn):
+    from handlers import editar as ed
+
+    ctx = _ctx_edicion(entorn, "precio")
+    assert await ed.edit_value(entorn.texto("abc"), ctx) == ed.EDIT_VALUE
+    assert "nuevo_valor" not in ctx.user_data
+
+
+@pytest.mark.asyncio
+async def test_edit_value_cantidad_delta_y_custom(entorn):
+    from handlers import editar as ed
+
+    ctx = _ctx_edicion(entorn, "cantidad", cantidad=3)
+    assert await ed.edit_value(entorn.click("cant_5"), ctx) == ed.CONFIRMAR
+    assert ctx.user_data["nuevo_valor"] == 8
+
+    assert await ed.edit_value(entorn.click("cant_custom"), ctx) == ed.EDIT_VALUE
+
+
+@pytest.mark.asyncio
+async def test_edit_value_fotos_acumula_hasta_confirmar(entorn):
+    from handlers import editar as ed
+
+    ctx = _ctx_edicion(entorn, "fotos")
+    ctx.user_data["fotos_nuevas"] = []
+    assert await ed.edit_value(entorn.foto("F1"), ctx) == ed.EDIT_VALUE
+    assert await ed.edit_value(entorn.foto("F2"), ctx) == ed.EDIT_VALUE
+    assert await ed.edit_value(entorn.foto("F3"), ctx) == ed.EDIT_VALUE
+    assert await ed.edit_value(entorn.foto("F4"), ctx) == ed.CONFIRMAR
+    assert ctx.user_data["nuevo_valor"] == ["F1", "F2", "F3", "F4"]
+
+
+@pytest.mark.asyncio
+async def test_edit_value_cancelar_termina(entorn):
+    from handlers import editar as ed
+
+    ctx = _ctx_edicion(entorn, "nombre")
+    assert await ed.edit_value(entorn.click("cancelar"), ctx) is not None
+
+
+# ================= 10. ELIMINAR CATEGORÍA (confirmar_delete) =================
+
+@pytest.mark.asyncio
+async def test_eliminar_categoria_admin_confirma(entorn, admin_registrado):
+    from handlers import categorias as ct
+
+    entorn.user_id = admin_registrado
+    cat_id = database.obtener_categorias()[0]["id"]
+
+    estado = await ct.confirmar_delete(entorn.click(f"eliminar_cat_{cat_id}"), entorn.context)
+    assert estado == ct.CONFIRMAR_DELETE
+    assert "Eliminar" in entorn.ultimo_texto
+
+    await ct.confirmar_delete(entorn.click(f"confirmar_eliminar_cat_{cat_id}"), entorn.context)
+    assert all(c["id"] != cat_id for c in database.obtener_categorias())
+
+
+@pytest.mark.asyncio
+async def test_eliminar_categoria_no_admin_rechazado(entorn, admin_registrado):
+    from handlers import categorias as ct
+
+    cat_id = database.obtener_categorias()[0]["id"]
+    otro = 555002  # no es admin
+
+    await ct.confirmar_delete(entorn.click(f"eliminar_cat_{cat_id}", user_id=otro), entorn.context)
+    assert any(c["id"] == cat_id for c in database.obtener_categorias())
