@@ -382,7 +382,7 @@ async def test_busqueda_web_muestra_ecuador_primero(entorn, admin_registrado, mo
                    compatibilidad=["Toyota Corolla"], componente_hermano="",
                    sitio="AliExpress", pais="Internacional", url="https://aliexpress.com/i/1")
 
-    async def _fake(codigo, nombre="", user_id=0):
+    async def _fake(codigo, nombre="", user_id=0, marca=""):
         return {
             "codigo": codigo,
             "nombre_busqueda": nombre,
@@ -396,7 +396,11 @@ async def test_busqueda_web_muestra_ecuador_primero(entorn, admin_registrado, mo
 
     monkeypatch.setattr("web_search.buscar_repuesto_web", _fake)
 
+    # El código no está en la BD: primero se pregunta la marca.
     estado = await bc.search_web_input(entorn.texto("4121020-BE101 faro"), entorn.context)
+    assert estado == bc.WEB_MARCA
+
+    estado = await bc.search_web_marca(entorn.texto("Toyota"), entorn.context)
     assert estado == bc.SEARCH_MODE
 
     texto = entorn.ultimo_texto
@@ -417,12 +421,13 @@ async def test_busqueda_web_sin_datos(entorn, admin_registrado, monkeypatch):
 
     entorn.user_id = admin_registrado
 
-    async def _fake(codigo, nombre="", user_id=0):
+    async def _fake(codigo, nombre="", user_id=0, marca=""):
         return None
 
     monkeypatch.setattr("web_search.buscar_repuesto_web", _fake)
 
-    assert await bc.search_web_input(entorn.texto("ZZZ-999 faro"), entorn.context) == bc.SEARCH_WEB_INPUT
+    assert await bc.search_web_input(entorn.texto("ZZZ-999 faro"), entorn.context) == bc.WEB_MARCA
+    assert await bc.search_web_marca(entorn.texto("Toyota"), entorn.context) == bc.SEARCH_WEB_INPUT
     assert "No se encontró información" in entorn.ultimo_texto
 
 

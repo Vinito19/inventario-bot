@@ -1389,3 +1389,78 @@ class TestCategoriasDeFuncion:
         assert s._extract_function("Tornillo Sextavado M8") == "Repuesto Automotriz"
         assert s._extract_function("") == "Repuesto Automotriz"
 
+
+class TestDetectarMarca:
+    def test_detecta_marca_conocida(self):
+        from scrapers.base import detectar_marca
+        assert detectar_marca("Faro delantero Kia Soluto") == "Kia"
+        assert detectar_marca("Faro para Toyota Corolla 2018") == "Toyota"
+
+    def test_normaliza_variantes(self):
+        from scrapers.base import detectar_marca
+        # El catálogo escribe "Ranault"/"GWM"; el usuario busca "Renault"/"Great Wall".
+        assert detectar_marca("Faro Ranault Sandero") == "Renault"
+        assert detectar_marca("Faro GWM Poer") == "Great Wall"
+
+    def test_sin_marca_conocida(self):
+        from scrapers.base import detectar_marca
+        assert detectar_marca("Faro delantero derecho") is None
+        assert detectar_marca("") is None
+
+
+class TestEnriquecerFicha:
+    """La ficha del producto aporta tecnología/compatibilidad que la tarjeta no trae."""
+
+    @staticmethod
+    def _scraper(html):
+        class Dummy(BaseScraper):
+            SITE_NAME = "Dummy"
+
+            def search_url(self, query):
+                return "https://x.com"
+
+            def _parse(self, html):
+                return []
+
+            async def _get_html(self, url, params=None):
+                return html
+
+        return Dummy()
+
+    @staticmethod
+    def _producto(**kw):
+        base = dict(
+            codigo="X1", nombre="Faro delantero", precio_usd=10.0,
+            moneda_original="USD", precio_original=10.0, funcion="Faro Delantero",
+            lado="No especificado", tecnologia="No especificada",
+            compatibilidad=["Verificar con vendedor"], url="https://x.com/p",
+        )
+        base.update(kw)
+        return Product(**base)
+
+    def test_extrae_tecnologia_y_compatibilidad_de_la_ficha(self):
+        import asyncio
+        html = (
+            '<html><body>'
+            '<div class="product attribute description">'
+            'Faro delantero LED para Kia Soluto 2018-2021</div>'
+            '</body></html>'
+        )
+        p = self._producto()
+        asyncio.run(self._scraper(html).enriquecer(p))
+        assert p.tecnologia == "LED"
+        assert "Kia Soluto 2018-2021" in p.compatibilidad
+
+    def test_no_pierde_datos_si_la_ficha_no_aporta(self):
+        import asyncio
+        p = self._producto(tecnologia="LED", compatibilidad=["Kia Rio 2020"])
+        asyncio.run(self._scraper("<html><body><p>sin detalle</p></body></html>").enriquecer(p))
+        assert p.tecnologia == "LED"
+        assert p.compatibilidad == ["Kia Rio 2020"]
+
+    def test_sin_url_no_hace_nada(self):
+        import asyncio
+        p = self._producto(url="")
+        asyncio.run(self._scraper("<html></html>").enriquecer(p))
+        assert p.tecnologia == "No especificada"
+

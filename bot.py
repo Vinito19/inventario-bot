@@ -10,7 +10,6 @@ from backup import enviar_backup
 from database import init_db, registrar_admins
 from handlers.agregar import agregar_handler
 from handlers.buscar import buscar_handler
-from handlers.buscarweb import buscarweb_callback_handler
 from handlers.categorias import categorias_handler
 from handlers.editar import editar_handler
 from handlers.eliminar import eliminar_handler
@@ -154,7 +153,6 @@ def main():
 
     app.add_handler(setlogo_handler)
     app.add_handler(proforma_callback_handler)
-    app.add_handler(buscarweb_callback_handler)
 
     app.add_handler(inicio_callback_handler)
 

@@ -24,6 +24,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 
 from scrapers.aggregator import SearchAggregator
+from scrapers.base import detectar_marca
 
 # ─── Validación y sanitización de entrada ───────────────────────────────
 CODIGO_PATTERN = re.compile(r'^[a-zA-Z0-9\-\.]{1,50}$')
@@ -347,10 +348,47 @@ async def _buscar_en_motores_genericos(codigo: str, nombre: str = "") -> dict | 
     }
 
 
-async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -> dict | None:
+def _filtrar_por_marca(productos: list, marca: str) -> list:
+    """Descarta productos de una marca distinta a la buscada.
+
+    Sólo se elimina cuando el producto declara otra marca conocida; los que no
+    mencionan ninguna se conservan, porque pueden ser el repuesto correcto sin
+    marca en el título.
+    """
+    canon = detectar_marca(marca) or (marca or "").strip().title()
+    if not canon:
+        return productos
+    filtrados = []
+    for p in productos:
+        detectada = detectar_marca(f"{p.nombre} {p.url}")
+        if detectada is None or detectada.lower() == canon.lower():
+            filtrados.append(p)
+    return filtrados
+
+
+async def _enriquecer_resultados(aggregator, resultados: dict) -> None:
+    """Abre la ficha de los primeros resultados mostrados para leer tecnología
+    y compatibilidad reales (la tarjeta del listado no las trae)."""
+    scrapers = {
+        s.name: s for s in (
+            *getattr(aggregator, "ecuador_scrapers", []),
+            *getattr(aggregator, "international_scrapers", []),
+        )
+    }
+    objetivos = resultados.get("ecuador", [])[:3] + resultados.get("internacional", [])[:3]
+    tareas = [scrapers[p.sitio].enriquecer(p) for p in objetivos if p.sitio in scrapers]
+    if tareas:
+        await asyncio.gather(*tareas, return_exceptions=True)
+
+
+async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0,
+                              marca: str = "") -> dict | None:
     """
     Busca repuesto en sitios ecuatorianos (prioridad) e internacionales (fallback).
     Retorna dict con resultados de scrapers o, si fallan, búsqueda web genérica.
+
+    `marca` (opcional) descarta los resultados que declaran otra marca: los
+    catálogos difusos devuelven la pieza buscada de marcas ajenas.
     """
     # Rate limit por usuario (1 búsqueda = 1 request, no por motor)
     if user_id > 0:
@@ -370,7 +408,7 @@ async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -
         return None
 
     # 1. Caché
-    cache_key = f"{codigo}|{nombre}".lower()
+    cache_key = f"{codigo}|{nombre}|{marca}".lower()
     cached = CACHE.get(cache_key)
     if cached:
         return cached
@@ -380,11 +418,19 @@ async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -
         aggregator = SearchAggregator()
         resultados = await aggregator.search(codigo, nombre)
 
+        if marca:
+            resultados["ecuador"] = _filtrar_por_marca(resultados["ecuador"], marca)
+            resultados["internacional"] = _filtrar_por_marca(resultados["internacional"], marca)
+            resultados["todos"] = resultados["ecuador"] + resultados["internacional"]
+
         if resultados["todos"]:
+            await _enriquecer_resultados(aggregator, resultados)
+
             # Convertir a formato compatible con el bot
             resultado = {
                 "codigo": codigo,
                 "nombre_busqueda": nombre,
+                "marca": detectar_marca(marca) or marca,
                 "resultados_ecuador": [p.to_dict() for p in resultados["ecuador"]],
                 "resultados_internacional": [p.to_dict() for p in resultados["internacional"]],
                 "todos_los_resultados": [p.to_dict() for p in resultados["todos"][:10]],
@@ -400,7 +446,7 @@ async def buscar_repuesto_web(codigo: str, nombre: str = "", user_id: int = 0) -
         logging.error("Error en búsqueda con scrapers: %s", e)
 
     # 3. Fallback a búsqueda web genérica si falla
-    resultado = await _buscar_en_motores_genericos(codigo, nombre)
+    resultado = await _buscar_en_motores_genericos(codigo, f"{nombre} {marca}".strip())
     if resultado:
         CACHE.set(cache_key, resultado)
     return resultado

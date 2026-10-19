@@ -28,6 +28,7 @@ from keyboards import (
     menu_detalle_repuesto,
     menu_resultados,
 )
+from scrapers.base import detectar_marca
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,27 @@ def validar_termino_busqueda(texto: str, max_len: int = 100) -> str:
     return texto
 
 
-SEARCH_MODE, SEARCH_LOCAL, SEARCH_WEB_INPUT, VIEW_ITEM = range(4)
+SEARCH_MODE, SEARCH_LOCAL, SEARCH_WEB_INPUT, VIEW_ITEM, WEB_MARCA = range(5)
+
+
+def _marca_del_repuesto(repuesto) -> str:
+    """Deduce la marca de la descripción del repuesto, si la menciona."""
+    if not repuesto:
+        return ""
+    try:
+        texto = f"{repuesto['nombre'] or ''} {repuesto['descripcion'] or ''}"
+    except (KeyError, IndexError, TypeError):
+        return ""
+    return detectar_marca(texto) or ""
+
+
+async def _buscar_y_formatear(codigo, nombre, marca, user_id):
+    """Busca en internet (filtrando por marca) y devuelve el texto formateado."""
+    repuesto = obtener_repuesto(codigo)
+    termino = _termino_busqueda_web(repuesto, nombre)
+    resultado = await web_search.buscar_repuesto_web(
+        codigo, termino, user_id=user_id, marca=marca)
+    return _formatear_resultado(resultado) if resultado else None
 
 
 async def start_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -159,6 +180,14 @@ async def search_local(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return VIEW_ITEM
 
 
+def _botones_resultado_web():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Nueva búsqueda web", callback_data="buscar_web")],
+        [InlineKeyboardButton("📂 Buscar en local", callback_data="buscar_local")],
+        [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
+    ])
+
+
 async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         texto_input = validar_termino_busqueda(update.message.text, max_len=150)
@@ -171,13 +200,35 @@ async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     codigo = partes[0]
     nombre = partes[1] if len(partes) > 1 else ""
 
-    # Si el código está en la BD, la descripción aporta marca/modelo/año.
-    termino = _termino_busqueda_web(obtener_repuesto(codigo), nombre)
+    # Si el código está en la BD, su descripción aporta la marca; si no, se
+    # pregunta, porque los buscadores difusos devuelven la pieza de otra marca.
+    marca = _marca_del_repuesto(obtener_repuesto(codigo))
+    if not marca:
+        context.user_data["busca_web"] = (codigo, nombre)
+        await update.message.reply_text(
+            "🏷️ ¿De qué marca es el repuesto?\n\n"
+            "Escribe la marca (ej. Kia) o '-' para buscar sin filtrar.",
+            reply_markup=botones_volver(),
+        )
+        return WEB_MARCA
 
-    msg = await update.message.reply_text(f"🔍 Buscando en internet: <b>{_escape(codigo)}</b>...", parse_mode="HTML")
-    resultado = await web_search.buscar_repuesto_web(codigo, termino, user_id=update.effective_user.id)
+    return await _responder_web_texto(update, context, codigo, nombre, marca)
 
-    if not resultado:
+
+async def search_web_marca(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = (update.message.text or "").strip()
+    marca = "" if texto in ("", "-", "omitir") else texto
+    codigo, nombre = context.user_data.pop("busca_web", ("", ""))
+    if not codigo:
+        return SEARCH_MODE
+    return await _responder_web_texto(update, context, codigo, nombre, marca)
+
+
+async def _responder_web_texto(update, context, codigo, nombre, marca):
+    msg = await update.message.reply_text(
+        f"🔍 Buscando en internet: <b>{_escape(codigo)}</b>...", parse_mode="HTML")
+    lines = await _buscar_y_formatear(codigo, nombre, marca, update.effective_user.id)
+    if lines is None:
         await msg.edit_text(
             f"❌ No se encontró información para <b>{_escape(codigo)}</b> {_escape(nombre or '')}.\n\n"
             "Intenta con otro código o nombre.",
@@ -185,17 +236,21 @@ async def search_web_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=botones_volver(),
         )
         return SEARCH_WEB_INPUT
+    await msg.edit_text(lines, parse_mode="HTML", reply_markup=_botones_resultado_web())
+    return SEARCH_MODE
 
-    # Formatear resultado
-    lines = _formatear_resultado(resultado)
 
-    botones = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Nueva búsqueda web", callback_data="buscar_web")],
-        [InlineKeyboardButton("📂 Buscar en local", callback_data="buscar_local")],
-        [InlineKeyboardButton("🏠 Inicio", callback_data="inicio")],
-    ])
-
-    await msg.edit_text(lines, parse_mode="HTML", reply_markup=botones)
+async def _responder_web_callback(query, context, codigo, nombre, marca):
+    await edit_mensaje(query, f"🔍 Buscando en internet: <b>{_escape(codigo)}</b>...")
+    lines = await _buscar_y_formatear(codigo, nombre, marca, query.from_user.id)
+    if lines is None:
+        await edit_mensaje(
+            query,
+            f"❌ No se encontró información para <b>{_escape(codigo)}</b> {_escape(nombre or '')}.",
+            reply_markup=botones_volver(),
+        )
+        return SEARCH_MODE
+    await edit_mensaje(query, lines, reply_markup=_botones_resultado_web())
     return SEARCH_MODE
 
 
@@ -208,6 +263,22 @@ async def view_item(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await finalizar(update, context)
 
     await query.answer()
+
+    if data.startswith("buscarweb_"):
+        codigo = data.split("_", 1)[1]
+        repuesto = obtener_repuesto(codigo)
+        nombre = repuesto["nombre"] if repuesto else ""
+        marca = _marca_del_repuesto(repuesto)
+        if not marca:
+            context.user_data["busca_web"] = (codigo, nombre or "")
+            await edit_mensaje(
+                query,
+                "🏷️ ¿De qué marca es el repuesto?\n\n"
+                "Escribe la marca (ej. Kia) o '-' para buscar sin filtrar.",
+                reply_markup=botones_volver(),
+            )
+            return WEB_MARCA
+        return await _responder_web_callback(query, context, codigo, nombre or "", marca)
 
     if data == "buscar":
         await edit_mensaje(
@@ -308,8 +379,12 @@ buscar_handler = ConversationHandler(
         SEARCH_MODE: [CallbackQueryHandler(search_mode_callback, pattern="^(buscar_local|buscar_web|cancelar)$")],
         SEARCH_LOCAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_local)],
         SEARCH_WEB_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_web_input)],
+        WEB_MARCA: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_web_marca)],
         VIEW_ITEM: [
-            CallbackQueryHandler(view_item, pattern=r"^(inicio|buscar|ver_\d+|proforma|buscar_web|buscar_local|cancelar)$"),
+            CallbackQueryHandler(
+                view_item,
+                pattern=r"^(inicio|buscar|ver_\d+|proforma|buscar_web|buscar_local|cancelar|buscarweb_[A-Za-z0-9\-\.]+)$",
+            ),
         ],
     },
     fallbacks=[

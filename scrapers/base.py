@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import aiohttp
+from bs4 import BeautifulSoup
 
 from scrapers.models import Product
 
@@ -45,6 +46,31 @@ _MARCAS = (
 )
 _MARCAS_COMPATIBILIDAD = "|".join(re.escape(marca) for marca in _MARCAS)
 _MARCAS_PALABRAS = {marca.lower() for marca in _MARCAS} | {"great", "wall", "vw"}
+
+# Formas equivalentes que deben compararse como la misma marca: el catálogo
+# escribe "Ranault" (error de tipeo) y "GWM", pero el usuario busca "Renault"
+# y "Great Wall". Sin unificar, el filtro por marca descartaría el repuesto
+# correcto por un nombre distinto.
+_MARCA_CANONICA = {"ranault": "Renault", "gwm": "Great Wall"}
+_MARCAS_RE = re.compile(
+    r"\b(" + "|".join(re.escape(marca) for marca in sorted(_MARCAS, key=len, reverse=True)) + r")\b",
+    re.IGNORECASE,
+)
+
+
+def detectar_marca(texto: str) -> str | None:
+    """Devuelve la primera marca conocida del texto, ya normalizada.
+
+    Se usa para deducir la marca de una descripción de la base de datos y para
+    exigirla como filtro en los resultados de internet.
+    """
+    if not texto:
+        return None
+    match = _MARCAS_RE.search(texto)
+    if not match:
+        return None
+    cruda = match.group(1)
+    return _MARCA_CANONICA.get(cruda.lower(), cruda.title())
 
 # Categorías de función, en orden de prioridad: gana la primera que coincide.
 # El orden importa en dos casos:
@@ -503,6 +529,64 @@ class BaseScraper(ABC):
                 return match.upper()
 
         return None
+
+    async def enriquecer(self, producto: Product) -> None:
+        """Completa tecnología/compatibilidad leyendo la ficha del producto.
+
+        Las tarjetas de los listados no traen LED/xenón ni los años de
+        compatibilidad; la ficha sí, a veces dentro de un desplegable que el
+        texto plano no muestra. Sólo se mejora el valor si la ficha aporta algo:
+        si no, el producto conserva lo que ya tenía.
+        """
+        if not producto.url:
+            return
+        # Abrir la ficha con un navegador por resultado cuesta decenas de
+        # segundos; sólo se enriquece donde basta una petición HTTP.
+        if self.use_playwright and not self.aiohttp_primero:
+            return
+        try:
+            html = await self._get_html(producto.url)
+        except Exception as exc:
+            logger.debug("[%s] no se pudo abrir la ficha %s: %s",
+                         self.name, producto.url, exc)
+            return
+
+        descripcion = self._descripcion_ficha(html)
+        if not descripcion:
+            return
+
+        texto = f"{producto.codigo} {producto.nombre} {descripcion}"
+        tecnologia = self._extract_technology(texto)
+        if tecnologia != "No especificada":
+            producto.tecnologia = tecnologia
+        compatibilidad = self._extract_compatibility(texto)
+        if compatibilidad != ["Verificar con vendedor"]:
+            producto.compatibilidad = compatibilidad
+
+    @staticmethod
+    def _descripcion_ficha(html: str) -> str:
+        """Texto de la descripción del producto, incluyendo pestañas ocultas.
+
+        Los catálogos (Magento y similares) guardan los detalles en bloques con
+        "description"/"attributes"/"detail" en la clase o el id, aunque estén
+        plegados. Se agrega el meta description como respaldo.
+        """
+        soup = BeautifulSoup(html, "lxml")
+        patron = re.compile(r"(description|descripcion|detail|detalle|specification|attribute|ficha)",
+                            re.IGNORECASE)
+        partes: list[str] = []
+        for el in soup.find_all(attrs={"class": patron}):
+            texto = el.get_text(" ", strip=True)
+            if texto:
+                partes.append(texto)
+        for el in soup.find_all(attrs={"id": patron}):
+            texto = el.get_text(" ", strip=True)
+            if texto:
+                partes.append(texto)
+        meta = soup.find("meta", attrs={"name": "description"})
+        if meta and meta.get("content"):
+            partes.append(meta["content"].strip())
+        return " ".join(partes)[:3000]
 
     @staticmethod
     def _build_url(url: str, params: dict[str, Any] | None = None) -> str:

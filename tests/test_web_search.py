@@ -335,3 +335,61 @@ def test_cache_persiste_en_disco(tmp_path):
     # Una instancia nueva debe leer lo persistido por la primera
     c2 = web_search.Cache(path, ttl=3600)
     assert c2.get("clave") == {"x": 1}
+
+
+# ---------- Filtro por marca ----------
+
+def test_filtrar_por_marca_descarta_otras_marcas():
+    from web_search import _filtrar_por_marca
+
+    productos = [
+        _producto("Faro Kia Soluto", 10.0),
+        _producto("Faro Toyota Corolla", 10.0, url="https://x.com/b"),
+        _producto("Faro delantero derecho", 10.0, url="https://x.com/c"),
+    ]
+    nombres = [p.nombre for p in _filtrar_por_marca(productos, "Kia")]
+    assert "Faro Kia Soluto" in nombres
+    assert "Faro Toyota Corolla" not in nombres
+    # Un producto sin marca declarada no se puede descartar.
+    assert "Faro delantero derecho" in nombres
+
+
+def test_filtrar_por_marca_normaliza_variantes():
+    from web_search import _filtrar_por_marca
+
+    productos = [_producto("Faro Ranault Sandero", 10.0)]
+    assert _filtrar_por_marca(productos, "Renault") == productos
+
+
+def test_filtrar_por_marca_vacia_no_filtra():
+    from web_search import _filtrar_por_marca
+
+    productos = [_producto("Faro Toyota", 10.0)]
+    assert _filtrar_por_marca(productos, "") == productos
+
+
+def test_buscar_repuesto_web_filtra_por_marca(monkeypatch):
+    import web_search
+    from scrapers.models import Product
+
+    def mk(nombre, url="https://x/p"):
+        return Product(
+            codigo="C1", nombre=nombre, precio_usd=10.0, moneda_original="USD",
+            precio_original=10.0, funcion="Faro Delantero", lado="Derecho",
+            tecnologia="LED", compatibilidad=[], sitio="Mansuera", pais="Ecuador",
+            url=url,
+        )
+
+    class FakeAggregator:
+        async def search(self, codigo, nombre=""):
+            return {
+                "ecuador": [mk("Faro Kia Soluto"), mk("Faro Toyota Corolla", "https://x/q")],
+                "internacional": [],
+                "todos": [mk("Faro Kia Soluto"), mk("Faro Toyota Corolla", "https://x/q")],
+            }
+
+    monkeypatch.setattr(web_search, "SearchAggregator", FakeAggregator)
+
+    r = asyncio.run(web_search.buscar_repuesto_web("C1", "faro", marca="Kia"))
+    assert [p["nombre"] for p in r["resultados_ecuador"]] == ["Faro Kia Soluto"]
+    assert r["total_ecuador"] == 1
